@@ -113,7 +113,7 @@ def draw_networkx_edges(
     if isinstance(edge_cmap, str):
         encoded_attrs["color"] = alt.Color(
             edge_color,
-            scale=alt.Scale(scheme=edge_cmap, legend=None),
+            scale=alt.Scale(scheme=edge_cmap),
             legend=None)
 
     elif edge_cmap is not None:
@@ -250,7 +250,7 @@ def draw_networkx_arrows(
     if isinstance(edge_cmap, str):
         encoded_attrs["color"] = alt.Color(
             edge_color,
-            scale=alt.Scale(scheme=edge_cmap, legend=None),
+            scale=alt.Scale(scheme=edge_cmap),
             legend=None)
 
     elif edge_cmap is not None:
