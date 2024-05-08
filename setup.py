@@ -14,17 +14,17 @@ from setuptools import find_packages, setup, Command
 # Package meta-data.
 NAME = 'nx_altair'
 DESCRIPTION = 'Draw NetworkX graphs with Altair'
-URL = 'https://github.com/Zsailer/nx_altair'
-EMAIL = 'zachsailer@gmail.com'
+URL = 'https://github.com/T-Flet/nx_altair'
+EMAIL = 'T-Fletcher@outlook.com'
 AUTHOR = 'Zachary R. Sailer'
-REQUIRES_PYTHON = '>=3.3.0'
+REQUIRES_PYTHON = '>=3.10.0'
 VERSION = None
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    "pandas",
-    "networkx",
-    "altair"
+    'pandas',
+    'networkx',
+    'altair'
 ]
 
 # The rest you shouldn't have to touch too much :)
@@ -36,7 +36,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 # Import the README and use it as the long-description.
 # Note: this will only work if 'README.md' is present in your MANIFEST.in file!
-with io.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
+with io.open(os.path.join(here, 'README.md'), encoding = 'utf-8') as f:
     long_description = '\n' + f.read()
 
 # Load the package's __version__.py module as a dictionary.
@@ -49,14 +49,14 @@ else:
 
 
 class UploadCommand(Command):
-    """Support setup.py upload."""
+    '''Support setup.py upload.'''
 
     description = 'Build and publish the package.'
     user_options = []
 
     @staticmethod
     def status(s):
-        """Prints things in bold."""
+        '''Prints things in bold.'''
         print('\033[1m{0}\033[0m'.format(s))
 
     def initialize_options(self):
@@ -87,37 +87,40 @@ class UploadCommand(Command):
 
 # Where the magic happens:
 setup(
-    name=NAME,
-    version=about['__version__'],
-    description=DESCRIPTION,
-    long_description=long_description,
-    long_description_content_type='text/markdown',
-    author=AUTHOR,
-    author_email=EMAIL,
-    python_requires=REQUIRES_PYTHON,
-    url=URL,
-    packages=find_packages(exclude=('tests',)),
+    name = NAME,
+    version = about['__version__'],
+    description = DESCRIPTION,
+    long_description = long_description,
+    long_description_content_type = 'text/markdown',
+    author = AUTHOR,
+    author_email = EMAIL,
+    python_requires = REQUIRES_PYTHON,
+    url = URL,
+    packages = find_packages(exclude = ('tests',)),
     # If your package is a single module, use this instead of 'packages':
-    # py_modules=['mypackage'],
+    # py_modules = ['mypackage'],
 
-    # entry_points={
-    #     'console_scripts': ['mycli=mymodule:cli'],
+    # entry_points = {
+    #     'console_scripts': ['mycli = mymodule:cli'],
     # },
-    install_requires=REQUIRED,
-    include_package_data=True,
-    license='MIT',
-    classifiers=[
+    install_requires = REQUIRED,
+    include_package_data = True,
+    license = 'MIT',
+    classifiers = [
         # Trove classifiers
-        # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
+        # Full list: https://pypi.python.org/pypi?%3Aaction = list_classifiers
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy'
     ],
     # $ setup.py publish support.
-    cmdclass={
+    cmdclass = {
         'upload': UploadCommand,
     },
 )
+
+
