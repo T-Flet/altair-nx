@@ -31,17 +31,14 @@ def draw_networkx_edges(G = None, pos = None,
     width : float, or array of floats
        Line width of edges (default = 1.0)
 
-    edge_color : color string, or array of floats
-       Edge color. Can be a single color format string (default = 'r'),
-       or a sequence of colors with the same length as edgelist.
-       If numeric values are specified they will be mapped to
-       colors using the edge_cmap and edge_vmin,edge_vmax parameters.
+    edge_color : colour string or edge attribute name
+       In the attribute case, its values need to be colour strings if edge_cmap is None and floats if not None.
 
     alpha : float
        The edge transparency (default = 1.0)
 
     edge_cmap : Matplotlib colormap
-       Colormap for mapping intensities of edges (default = None)
+       Colormap for mapping intensities of edges; SILENTLY IGNORED unless edge_color is the name of an edge attribute containing floats (default = None)
 
     Returns
     -------
@@ -62,27 +59,27 @@ def draw_networkx_edges(G = None, pos = None,
     # Restrict to a given subset
     if isinstance(edgelist, list):
         df_edges = edge_chart.data = df_edges.loc[df_edges['pair'].isin(edgelist)]
-    elif edgelist is not None: raise Exception('edgelist must be a list or None.')
+    elif edgelist is not None: raise TypeError('edgelist must be a list or None.')
 
     # Width
     if isinstance(width, str): encoded_attrs['strokeWidth'] = alt.Size(width, legend = None)
     elif isinstance(width, (float, int)): marker_attrs['strokeWidth'] = width
-    else: raise Exception('width must be a string or int.')
+    else: raise TypeError('width must be a string or int.')
 
     # Colour
-    if not isinstance(edge_color, str): raise Exception('edge_color must be a string.')
-    elif edge_color in df_edges.columns: encoded_attrs['color'] = alt.Color(edge_color, legend = None)
+    if not isinstance(edge_color, str): raise TypeError('edge_color must be a string (either a colour or the name of an edge attribute containing colour strings or floats for a colour map).')
+    elif edge_color in df_edges.columns:
+        if edge_cmap is None: encoded_attrs['color'] = alt.Color(edge_color, legend = None)
+        elif isinstance(edge_cmap, str):
+            if df_edges.dtypes[edge_color] == 'O': raise TypeError(f'the edge attribute ({edge_color}) to use with edge_cmap {edge_cmap} is non-numeric.')
+            else: encoded_attrs['color'] = alt.Color(edge_color, scale = alt.Scale(scheme = edge_cmap), legend = None)
+        else: raise TypeError('edge_cmap must be a string (colormap name) or None.')
     else: marker_attrs['color'] = edge_color
 
     # Opacity
     if isinstance(alpha, str): encoded_attrs['opacity'] = alpha
     elif isinstance(alpha, (int, float)): marker_attrs['opacity'] = alpha
-    elif alpha is not None: raise Exception('alpha must be a string or None.')
-
-    # Colour map
-    if isinstance(edge_cmap, str):
-        encoded_attrs['color'] = alt.Color(edge_color, scale = alt.Scale(scheme = edge_cmap), legend = None)
-    elif edge_cmap is not None: raise Exception('edge_cmap must be a string (colormap name) or None.')
+    elif alpha is not None: raise TypeError('alpha must be a string or None.')
 
     # Tooltip
     if tooltip is not None: encoded_attrs['tooltip'] = tooltip
@@ -130,17 +127,14 @@ def draw_networkx_arrows(G = None, pos = None,
     arrow_length : float, optional (default = .1)
        The proportion of the line to be occupied by the arrow.
 
-    edge_color : color string, or array of floats
-       Edge color. Can be a single color format string (default = 'r'),
-       or a sequence of colors with the same length as edgelist.
-       If numeric values are specified they will be mapped to
-       colors using the edge_cmap and edge_vmin,edge_vmax parameters.
+    edge_color : colour string or edge attribute name
+       In the attribute case, its values need to be colour strings if edge_cmap is None and floats if not None.
 
     alpha : float
        The edge transparency (default = 1.0)
 
     edge_cmap : Matplotlib colormap
-       Colormap for mapping intensities of edges (default = None)
+       Colormap for mapping intensities of edges; SILENTLY IGNORED unless edge_color is the name of an edge attribute containing floats (default = None)
 
     Returns
     -------
@@ -161,27 +155,27 @@ def draw_networkx_arrows(G = None, pos = None,
     # Restrict to a given subset
     if isinstance(edgelist, list):
         df_edge_arrows = edge_chart.data = df_edge_arrows.loc[df_edge_arrows['pair'].isin(edgelist)]
-    elif edgelist is not None: raise Exception('edgelist must be a list or None.')
+    elif edgelist is not None: raise TypeError('edgelist must be a list or None.')
 
     # Width
     if isinstance(arrow_width, str): encoded_attrs['size'] = alt.Size(arrow_width, legend = None)
     elif isinstance(arrow_width, (float, int)): marker_attrs['strokeWidth'] = arrow_width
-    else: raise Exception('arrow_width must be a string or int.')
+    else: raise TypeError('arrow_width must be a string or int.')
 
     # Colour
-    if not isinstance(edge_color, str): raise Exception('edge_color must be a string.')
-    elif edge_color in df_edge_arrows.columns: encoded_attrs['color'] = alt.Color(edge_color, legend = None)
+    if not isinstance(edge_color, str): raise TypeError('edge_color must be a string (either a colour or the name of an edge attribute containing colour strings or floats for a colour map).')
+    elif edge_color in df_edge_arrows.columns:
+        if edge_cmap is None: encoded_attrs['color'] = alt.Color(edge_color, legend = None)
+        elif isinstance(edge_cmap, str):
+            if df_edge_arrows.dtypes[edge_color] == 'O': raise TypeError(f'the edge attribute ({edge_color}) to use with edge_cmap {edge_cmap} is non-numeric.')
+            else: encoded_attrs['color'] = alt.Color(edge_color, scale = alt.Scale(scheme = edge_cmap), legend = None)
+        else: raise TypeError('edge_cmap must be a string (colormap name) or None.')
     else: marker_attrs['color'] = edge_color
 
     # Opacity
     if isinstance(alpha, str): encoded_attrs['opacity'] = alpha
     elif isinstance(alpha, (int, float)): marker_attrs['opacity'] = alpha
-    elif alpha is not None: raise Exception('alpha must be a string or None.')
-
-    # Colour map
-    if isinstance(edge_cmap, str):
-        encoded_attrs['color'] = alt.Color(edge_color, scale = alt.Scale(scheme = edge_cmap), legend = None)
-    elif edge_cmap is not None: raise Exception('edge_cmap must be a string (colormap name) or None.')
+    elif alpha is not None: raise TypeError('alpha must be a string or None.')
 
     # Tooltip
     if tooltip is not None: encoded_attrs['tooltip'] = tooltip
@@ -203,7 +197,7 @@ def draw_networkx_arrows(G = None, pos = None,
 
 def draw_networkx_nodes(G = None, pos = None,
     chart = None, layer = None,
-    nodelist = None, node_size = 300, node_color = 'red', linewidths = 1.0, alpha = 1, cmap = None,
+    nodelist = None, node_size = 300, node_color = 'green', linewidths = 1.0, alpha = 1, cmap = None,
     tooltip = None, **kwargs):
     '''Draw the nodes of the graph G.
 
@@ -268,32 +262,32 @@ def draw_networkx_nodes(G = None, pos = None,
     # Restrict to a given subset
     if isinstance(nodelist, list):
         df_nodes = node_chart.data = df_nodes.loc[nodelist]
-    elif nodelist is not None: raise Exception('nodelist must be a list or None.')
+    elif nodelist is not None: raise TypeError('nodelist must be a list or None.')
 
     # Size
     if isinstance(node_size, str): encoded_attrs['size'] = alt.Size(node_size, legend = None)
     elif isinstance(node_size, int): marker_attrs['size'] = node_size
-    else: raise Exception('node_size must be a string or int.')
+    else: raise TypeError('node_size must be a string or int.')
     
     # Width of lines
     if isinstance(linewidths, str): encoded_attrs['strokeWidth'] = alt.Size(linewidths, legend = None)
     elif isinstance(linewidths, (float, int)): marker_attrs['strokeWidth'] = linewidths
-    else: raise Exception('linewidths must be a string or int.')
+    else: raise TypeError('linewidths must be a string or int.')
 
     # Colour
-    if not isinstance(node_color, str): raise Exception('node_color must be a string.')
+    if not isinstance(node_color, str): raise TypeError('node_color must be a string.')
     if node_color in df_nodes.columns: encoded_attrs['fill'] = node_color
     else: marker_attrs['fill'] = node_color
 
     # Opacity
     if isinstance(alpha, str): encoded_attrs['opacity'] = alpha
     elif isinstance(alpha, (int, float)): marker_attrs['opacity'] = alpha
-    elif alpha is not None: raise Exception('alpha must be a string or None.')
+    elif alpha is not None: raise TypeError('alpha must be a string or None.')
 
     # Colour map
     if isinstance(cmap, str):
         encoded_attrs['fill'] = alt.Color(node_color, scale = alt.Scale(scheme = cmap))
-    elif cmap is not None: raise Exception('cmap must be a string (colormap name) or None.')
+    elif cmap is not None: raise TypeError('cmap must be a string (colormap name) or None.')
 
     # Tooltip
     if tooltip is not None: encoded_attrs['tooltip'] = tooltip
@@ -366,15 +360,15 @@ def draw_networkx_labels(G = None, pos = None,
     # Restrict to a given subset
     if isinstance(nodelist, list):
         df_nodes = node_chart.data = df_nodes.loc[nodelist]
-    elif nodelist is not None: raise Exception('nodelist must be a list or None.')
+    elif nodelist is not None: raise TypeError('nodelist must be a list or None.')
 
     # Size
     if isinstance(font_size, str): encoded_attrs['size'] = alt.Size(font_size, legend = None)
     elif isinstance(font_size, int): marker_attrs['size'] = font_size
-    else: raise Exception('font_size must be a string or int.')
+    else: raise TypeError('font_size must be a string or int.')
 
     # Colour
-    if not isinstance(font_color, str): raise Exception('font_color must be a string.')
+    if not isinstance(font_color, str): raise TypeError('font_color must be a string.')
     if font_color in df_nodes.columns: encoded_attrs['fill'] = font_color
     else: marker_attrs['fill'] = font_color
 
@@ -396,13 +390,13 @@ def draw_networkx_labels(G = None, pos = None,
 def draw_networkx(G = None, pos = None,
     chart = None,
     nodelist = None, edgelist = None,
-    node_size = 300, node_color = 'red',
+    node_size = 300, node_color = 'green',
     node_label = None, font_color = 'black', font_size = 15,
     alpha = 1, cmap = None, linewidths = 1.0, width = 1,
     arrow_width = 2, arrow_length = .1,
-    edge_color = 'black', arrow_color = 'black',
+    edge_color = 'grey', arrow_color = 'black',
     node_tooltip = None, edge_tooltip = None,
-    edge_cmap = None):
+    edge_cmap = None, arrow_cmap = None):
     '''Draw the graph G using Altair.
 
     nodelist : list, optional (default G.nodes())
@@ -454,20 +448,17 @@ def draw_networkx(G = None, pos = None,
     arrow_length : float, optional (default = .1)
        The proportion of the line to be occupied by the arrow.
 
-    edge_color : color string, or array of floats (default = 'r')
-       Edge color. Can be a single color format string,
-       or a sequence of colors with the same length as edgelist.
-       If numeric values are specified they will be mapped to
-       colors using the edge_cmap and edge_vmin,edge_vmax parameters.
+    edge_color : colour string or edge attribute name
+       In the attribute case, its values need to be colour strings if edge_cmap is None and floats if not None.
 
-    arrow_color : color string, or array of floats (default = 'r')
-       Arrow color. Can be a single color format string,
-       or a sequence of colors with the same length as edgelist.
-       If numeric values are specified they will be mapped to
-       colors using the edge_cmap and edge_vmin,edge_vmax parameters.
+    arrow_color : colour string or edge attribute name
+       In the attribute case, its values need to be colour strings if edge_cmap is None and floats if not None.
 
     edge_cmap : Matplotlib colormap, optional (default = None)
-       Colormap for mapping intensities of edges
+       Colormap for mapping intensities of edges; SILENTLY IGNORED unless edge_color is the name of an edge attribute containing floats (default = None)
+
+    arrow_cmap : Matplotlib colormap, optional (default = None)
+       Colormap for mapping intensities of edges; SILENTLY IGNORED unless edge_color is the name of an edge attribute containing floats (default = None)
     '''
     if not pos: pos = nx.drawing.layout.spring_layout(G)
 
@@ -479,10 +470,10 @@ def draw_networkx(G = None, pos = None,
             tooltip = edge_tooltip)
 
         # Arrows
-        if isinstance(G, nx.DiGraph):
+        if nx.is_directed(G):
             arrows = draw_networkx_arrows(G, pos,
                 edgelist = edgelist,
-                alpha = alpha, arrow_width = arrow_width, arrow_length = arrow_length, edge_color = arrow_color, edge_cmap = edge_cmap,
+                alpha = alpha, arrow_width = arrow_width, arrow_length = arrow_length, edge_color = arrow_color, edge_cmap = arrow_cmap,
                 tooltip = edge_tooltip)
 
     # Nodes
@@ -503,7 +494,7 @@ def draw_networkx(G = None, pos = None,
     viz = []
     if len(G.edges()):
         viz.append(edges)
-        if isinstance(G, nx.DiGraph): viz.append(arrows)
+        if nx.is_directed(G): viz.append(arrows)
 
     if len(G.nodes()):
         viz.append(nodes)

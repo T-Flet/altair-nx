@@ -16,7 +16,7 @@ def to_pandas_nodes(G, pos):
         data = dict(x = pos[n][0], y = pos[n][1], **G.nodes[n])
         df.loc[n] = data
 
-    return df
+    return df.infer_objects()
 
 
 
@@ -49,7 +49,7 @@ def to_pandas_edges(G, pos, **kwargs):
         df.loc[idx] = data1
         df.loc[idx+1] = data2
 
-    return df
+    return df.infer_objects()
 
 
 
@@ -84,7 +84,7 @@ def to_pandas_edges_arrows(G, pos, arrow_length, **kwargs):
         df.loc[idx] = data1
         df.loc[idx+1] = data2
 
-    return df
+    return df.infer_objects()
 
 
 
