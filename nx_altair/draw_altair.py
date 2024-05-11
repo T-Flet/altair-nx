@@ -1,6 +1,7 @@
 import numpy as np
 import altair as alt
 import networkx as nx
+from copy import deepcopy
 
 from .core import to_pandas_edges, to_pandas_edges_arrows, to_pandas_nodes
 from ._utils import is_arraylike
@@ -26,7 +27,7 @@ def draw_networkx_edges(G = None, pos = None,
     chart:
 
     edgelist : collection of edge tuples
-       Draw only specified edges(default = G.edges())
+       Draw only specified edges(default = G.edges)
 
     width : float, or array of floats
        Line width of edges (default = 1.0)
@@ -101,7 +102,7 @@ def draw_networkx_edges(G = None, pos = None,
 
 def draw_networkx_arrows(G = None, pos = None,
     chart = None, layer = None,
-    edgelist = None, arrow_width = 2, arrow_length = .1, alpha = 1.0, edge_color = 'black', edge_cmap = None,
+    edgelist = None, arrow_width = 2, arrow_length = 0.05, arrow_length_is_relative = False, alpha = 1.0, edge_color = 'black', edge_cmap = None,
     tooltip = None, legend = False, **kwargs):
     '''Draw the edges of the graph G.
 
@@ -119,13 +120,16 @@ def draw_networkx_arrows(G = None, pos = None,
     chart:
 
     edgelist : collection of edge tuples
-       Draw only specified edges(default = G.edges())
+       Draw only specified edges(default = G.edges)
 
     arrow_width : float, optional (default = 2.0)
        The width of arrow portions of edges.
 
     arrow_length : float, optional (default = .1)
        The proportion of the line to be occupied by the arrow.
+    
+    arrow_length_is_relative: bool, optional (default = False)
+        Whether arrow_length should be interpreted as a proportion of its edge length instead of an absolute measure.
 
     edge_color : colour string or edge attribute name
        In the attribute case, its values need to be colour strings if edge_cmap is None and floats if not None.
@@ -141,7 +145,7 @@ def draw_networkx_arrows(G = None, pos = None,
     viz: ``altair.Chart`` object
     '''
     if chart is None:
-        df_edge_arrows = to_pandas_edges_arrows(G, pos, arrow_length)
+        df_edge_arrows = to_pandas_edges_arrows(G, pos, arrow_length, arrow_length_is_relative = arrow_length_is_relative)
         edge_chart = alt.Chart(df_edge_arrows)
     else:
         df_edge_arrows = chart.layer[0].data
@@ -213,7 +217,7 @@ def draw_networkx_nodes(G = None, pos = None,
        Positions should be sequences of length 2.
 
     nodelist : list, optional
-       Draw only specified nodes (default G.nodes())
+       Draw only specified nodes (default G.nodes)
 
     node_size : scalar or string
        Size of nodes (default = 300).  If an array is specified it must be the
@@ -324,7 +328,7 @@ def draw_networkx_labels(G = None, pos = None,
        Positions should be sequences of length 2.
 
     nodelist : list, optional
-       Draw only specified nodes (default G.nodes())
+       Draw only specified nodes (default G.nodes)
 
     font_size : scalar or string
        Size of nodes (default = 15).  If an array is specified it must be the
@@ -389,22 +393,29 @@ def draw_networkx_labels(G = None, pos = None,
 
 def draw_networkx(G = None, pos = None,
     chart = None,
-    nodelist = None, edgelist = None,
+    nodelist = None, edgelist = None, show_orphans = True, show_self_loops = True,
     node_size = 300, node_color = 'green',
     node_label = None, font_color = 'black', font_size = 15,
     alpha = 1, cmap = None, linewidths = 1.0, width = 1,
-    arrow_width = 2, arrow_length = .1,
+    arrow_width = 2, arrow_length = 0.05, arrow_length_is_relative = False,
     edge_color = 'grey', arrow_color = 'black',
     node_tooltip = None, edge_tooltip = None,
     edge_cmap = None, arrow_cmap = None):
     '''Draw the graph G using Altair.
 
-    nodelist : list, optional (default G.nodes())
+    nodelist : list, optional (default G.nodes)
        Draw only specified nodes
 
-    edgelist : list, optional (default = G.edges())
+    edgelist : list, optional (default = G.edges)
        Draw only specified edges
+    
+    show_orphans : bool (default = False)
+        Whether to plot nodes with no edges
 
+    show_self_loops : bool (default = False)
+        Whether to plot edges starting and ending on the same node;
+        nodes with only self-loops will still be plotted (though edge-less) unless show_orphans is also False
+        
     node_size : scalar or array, optional (default = 300)
        Size of nodes.  If an array is specified it must be the
        same length as nodelist.
@@ -448,6 +459,9 @@ def draw_networkx(G = None, pos = None,
     arrow_length : float, optional (default = .1)
        The proportion of the line to be occupied by the arrow.
 
+    arrow_length_is_relative: bool, optional (default = False)
+        Whether arrow_length should be interpreted as a proportion of its edge length instead of an absolute measure.
+
     edge_color : colour string or edge attribute name
        In the attribute case, its values need to be colour strings if edge_cmap is None and floats if not None.
 
@@ -460,10 +474,15 @@ def draw_networkx(G = None, pos = None,
     arrow_cmap : Matplotlib colormap, optional (default = None)
        Colormap for mapping intensities of edges; SILENTLY IGNORED unless edge_color is the name of an edge attribute containing floats (default = None)
     '''
+    if not (show_self_loops and show_orphans):
+        G = deepcopy(G)
+        if not show_self_loops: G.remove_edges_from(nx.selfloop_edges(G))
+        if not show_orphans: G.remove_nodes_from(list(nx.isolates(G))) # wants a non-generator iterable
+    
     if not pos: pos = nx.drawing.layout.spring_layout(G)
 
     # Edges
-    if len(G.edges()):
+    if len(G.edges):
         edges = draw_networkx_edges(G, pos,
             edgelist = edgelist,
             alpha = alpha, width = width, edge_color = edge_color, edge_cmap = edge_cmap,
@@ -473,11 +492,11 @@ def draw_networkx(G = None, pos = None,
         if nx.is_directed(G):
             arrows = draw_networkx_arrows(G, pos,
                 edgelist = edgelist,
-                alpha = alpha, arrow_width = arrow_width, arrow_length = arrow_length, edge_color = arrow_color, edge_cmap = arrow_cmap,
+                alpha = alpha, arrow_width = arrow_width, arrow_length = arrow_length, arrow_length_is_relative = arrow_length_is_relative, edge_color = arrow_color, edge_cmap = arrow_cmap,
                 tooltip = edge_tooltip)
 
     # Nodes
-    if len(G.nodes()):
+    if len(G.nodes):
         nodes = draw_networkx_nodes(G, pos,
             nodelist = nodelist,
             node_size = node_size, node_color = node_color, alpha = alpha, linewidths = linewidths, cmap = cmap,
@@ -492,11 +511,11 @@ def draw_networkx(G = None, pos = None,
 
     # Layer the chart
     viz = []
-    if len(G.edges()):
+    if len(G.edges):
         viz.append(edges)
         if nx.is_directed(G): viz.append(arrows)
 
-    if len(G.nodes()):
+    if len(G.nodes):
         viz.append(nodes)
         if node_label: viz.append(labels)
 

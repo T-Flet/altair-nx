@@ -2,89 +2,65 @@ import pandas as pd
 import networkx as nx
 import altair as alt
 from ._utils import despine
+from math import atan2, sin, cos
 
 
 def to_pandas_nodes(G, pos):
     '''Convert Graph nodes to pandas DataFrame that's readable to Altair.
     '''
-    attributes = ['x', 'y']
-    for n in G.nodes(): attributes += list(G.nodes[n].keys())
-    attributes = list(set(attributes))
-
-    df = pd.DataFrame(index = G.nodes(), columns = attributes)
-    for n in G.nodes:
-        data = dict(x = pos[n][0], y = pos[n][1], **G.nodes[n])
-        df.loc[n] = data
-
-    return df.infer_objects()
+    return pd.DataFrame([dict(x = pos[n][0], y = pos[n][1], **G.nodes[n]) for n in G.nodes], index = G.nodes)
 
 
 
 def to_pandas_edges(G, pos, **kwargs):
     '''Convert Graph edges to pandas DataFrame that's readable to Altair.
     '''
-    attributes = ['source', 'target', 'x', 'y', 'edge', 'pair']
-    if not (isinstance(G, nx.MultiGraph)):
-        for e in G.edges(): attributes += list(G.edges[e].keys())
-    attributes = list(set(attributes))
-
-    df = pd.DataFrame(index = range(G.size()*2), columns = attributes)
+    rows = []
     for i, e in enumerate(G.edges):
-        idx = i * 2
-
-        data1 = dict(
+        rows.append(dict(
             edge = i,
             source = e[0], target = e[1], pair = e,
             x = pos[e[0]][0], y = pos[e[0]][1],
             **G.edges[e]
-        )
+        ))
 
-        data2 = dict(
+        rows.append(dict(
             edge = i,
             source = e[0], target = e[1], pair = e,
             x = pos[e[1]][0], y = pos[e[1]][1],
             **G.edges[e]
-        )
+        ))
 
-        df.loc[idx] = data1
-        df.loc[idx+1] = data2
-
-    return df.infer_objects()
+    return pd.DataFrame(rows)
 
 
 
-def to_pandas_edges_arrows(G, pos, arrow_length, **kwargs):
+def to_pandas_edges_arrows(G, pos, arrow_length, arrow_length_is_relative = False, **kwargs):
     '''Convert Graph edges to pandas DataFrame that's readable to Altair.
+    If arrow_length_is_relative, then arrow_length is interpreted as the proportion of the corresponding edge length.
     '''
-    attributes = ['source', 'target', 'x', 'y', 'edge', 'pair']
-    for e in G.edges(): attributes += list(G.edges[e].keys())
-    attributes = list(set(attributes))
-
-    df = pd.DataFrame(index = range(G.size()*2), columns = attributes)
-
+    rows = []
     for i, e in enumerate(G.edges):
-        idx = i * 2
         Dx = pos[e[1]][0] - pos[e[0]][0]
         Dy = pos[e[1]][1] - pos[e[0]][1]
+        angle = atan2(Dy, Dx)
 
-        data1 = dict(
+        rows.append(dict(
             edge = i,
             source = e[0], target = e[1], pair = e,
             x = pos[e[1]][0], y = pos[e[1]][1],
             **G.edges[e]
-        )
+        ))
 
-        data2 = dict(
+        rows.append(dict(
             edge = i,
             source = e[0], target = e[1], pair = e,
-            x = pos[e[1]][0] - arrow_length * Dx, y = pos[e[1]][1] - arrow_length * Dy,
+            x = pos[e[1]][0] - arrow_length * (Dx if arrow_length_is_relative else cos(angle)),
+            y = pos[e[1]][1] - arrow_length * (Dy if arrow_length_is_relative else sin(angle)),
             **G.edges[e]
-        )
+        ))
 
-        df.loc[idx] = data1
-        df.loc[idx+1] = data2
-
-    return df.infer_objects()
+    return pd.DataFrame(rows)
 
 
 
