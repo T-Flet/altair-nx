@@ -61,14 +61,13 @@ for n in G.nodes():
 for e in G.edges():
     G.edges[e]['weight'] = np.random.uniform(1, 10)
 
-
 # Draw the graph using Altair
 viz = nxa.draw_networkx(
     G, pos = pos,
-    node_color = 'weight',
-    cmap = 'viridis',
-    width = 'weight',
-    edge_color = 'black',
+    node_colour = 'weight',
+    node_cmap = 'viridis',
+    edge_width = 'weight',
+    edge_colour = 'black',
 )
 
 # Show it as an interactive plot!
