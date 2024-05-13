@@ -14,19 +14,20 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] =
     chart: alt.Chart = None, layer: alt.Chart = None, subset: list = None,
     width = 1, colour = 'grey', cmap: str = None, alpha = 1.,
     tooltip: list[str] = None, legend = False,
+    loop_radius = .03, loop_angle = 90., loop_n_points = 30,
     curved_edges = False, control_points: list[tuple[float, float]] = None, interpolation = 'basis'):
     '''Draw the edges of graph G using Altair, with control over various features, including filtering and curve.
 
-    Note that for arguments which accept edge attributes as alternatives to fixed values there are additional options generated in the plotting process:
+    Note that for arguments which accept edge attributes as alternatives to fixed values there are additional options generated in the drawing process:
     their name ('edge'), order of nodes ('order'), node pair names individually and together ('source', 'target', 'pair'), and node coordinates ('x', 'y').
 
-    :param G: The graph to plot.
+    :param G: The graph to draw.
     :param pos: The node positions of G, as produced by any of the nx.*_layout functions, e.g. nx.kamada_kawai_layout,
         which is the default if pos is None (called with no edge attribute to use as weights, hence possibly missing out on more meaningful non-default positions).
 
     :param chart: A pre-existing chart to draw over.
     :param layer: A pre-existing chart layer to draw in.
-    :param subset: Subset of edges to plot.
+    :param subset: Subset of edges to draw.
 
     :param width: Either an int or an edge attribute containing ints.
     :param colour: Either a colour string or an edge attribute containing colour strings if cmap is None and floats if not None.
@@ -35,6 +36,15 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] =
 
     :param tooltip: Edge attributes to show on hover.
     :param legend: Whether to show a legend for attribute-controlled edge features.
+    
+    :param loop_radius: The radius of self-loop edges.
+    :param loop_angle: The direction (in degrees) in which self-loops are drawn from the node; above it by default.
+    :param loop_n_points: Number of points (INCLUDING the node itself) to draw self-loop edges.
+        The default value is high in order to approximate a circle in both straight and curved edge drawing cases,
+        HOWEVER, low values such as 2, 3, and 4 produce nice shapes pointed at the node in both cases
+        (in the straight-edge case, respectively: a short segment, a triangle, and a square).
+        NOTE: to draw straight edges but interpolation-curved loops (rather than by high manual point count), set control_points to [] rather than None
+        (or really any list of points whose 2nd coordinate is 0).
 
     :param curved_edges: Whether edges should be curved (using control_points and interpolate arguments).
     :param control_points: The control points to use the interpolation method on; they should be expressed in coordinates relative to their straight edge:
@@ -62,7 +72,7 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] =
         edge_chart = chart.layer[0]
     elif G is not None:
         if pos is None: pos = nx.drawing.layout.kamada_kawai_layout(G)
-        df_edges = to_pandas_edges(G, pos, control_points = control_points)
+        df_edges = to_pandas_edges(G, pos, control_points = control_points, loop_radius = loop_radius, loop_angle = loop_angle, loop_n_points = loop_n_points)
         edge_chart = alt.Chart(df_edges)
     else: raise ValueError('one of G, chart or layer is required to draw.')
 
@@ -128,16 +138,16 @@ def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] 
     curved_edges = False, control_points: list[tuple[float, float]] = None):
     '''Draw the edges of graph G using Altair, with control over various features, including filtering and curve.
     
-    Note that for arguments which accept edge attributes as alternatives to fixed values there are additional options generated in the plotting process:
+    Note that for arguments which accept edge attributes as alternatives to fixed values there are additional options generated in the drawing process:
     their name ('edge'), order of nodes ('order'), node pair names individually and together ('source', 'target', 'pair'), and node coordinates ('x', 'y').
 
-    :param G: The graph to plot.
+    :param G: The graph to draw.
     :param pos: The node positions of G, as produced by any of the nx.*_layout functions, e.g. nx.kamada_kawai_layout,
         which is the default if pos is None (called with no edge attribute to use as weights, hence possibly missing out on more meaningful non-default positions).
 
     :param chart: A pre-existing chart to draw over.
     :param layer: A pre-existing chart layer to draw in.
-    :param subset: Subset of edges for which to plot arrows.
+    :param subset: Subset of edges for which to draw arrows.
 
     :param width: Either an int or an edge attribute containing ints.
     :param length: A relative (i.e. proportion of edge length) or absolute measure of arrow length (the interpretation is determined by length_is_relative).
@@ -150,8 +160,8 @@ def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] 
     :param tooltip: Edge attributes to show on hover for arrows.
     :param legend: Whether to show a legend for attribute-controlled arrow features.
 
-    :param curved_edges: Whether the edges for which arrows are to be plotted are curved.
-    :param control_points: The control points used for the curved edges for which arrows are to be plotted are curved.
+    :param curved_edges: Whether the edges for which arrows are to be drawn are curved.
+    :param control_points: The control points used for the curved edges for which arrows are to be drawn are curved.
 
     :return: An Altair chart of the edges of given graph.
     '''
@@ -226,16 +236,16 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] =
     tooltip: list[str] = None, legend = False):
     '''Draw the nodes of graph G using Altair, with control over various features, including filtering, and sizes.
     
-    Note that for arguments which accept node attributes as alternatives to fixed values there are additional options generated in the plotting process:
+    Note that for arguments which accept node attributes as alternatives to fixed values there are additional options generated in the drawing process:
     their name ('node') and position coordinates ('x', 'y').
 
-    :param G: The graph to plot.
+    :param G: The graph to draw.
     :param pos: The node positions of G, as produced by any of the nx.*_layout functions, e.g. nx.kamada_kawai_layout,
         which is the default if pos is None (called with no edge attribute to use as weights, hence possibly missing out on more meaningful non-default positions).
 
     :param chart: A pre-existing chart to draw over.
     :param layer: A pre-existing chart layer to draw in.
-    :param subset: Subset of nodes to plot.
+    :param subset: Subset of nodes to draw.
 
     :param size: Either an int or a node attribute containing ints.
     :param outline_width: Either a single float for all nodes or a node attribute containing floats.
@@ -327,16 +337,16 @@ def draw_networkx_labels(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] 
     label: str = None, font_size = 15, font_colour = 'black'):
     '''Draw the node labels of graph G using Altair, with control over various features, including node filtering, and font.
     
-    Note that for arguments which accept node attributes as alternatives to fixed values there are additional options generated in the plotting process:
+    Note that for arguments which accept node attributes as alternatives to fixed values there are additional options generated in the drawing process:
     their name ('node') and position coordinates ('x', 'y').
 
-    :param G: The graph to plot.
+    :param G: The graph to draw.
     :param pos: The node positions of G, as produced by any of the nx.*_layout functions, e.g. nx.kamada_kawai_layout,
         which is the default if pos is None (called with no edge attribute to use as weights, hence possibly missing out on more meaningful non-default positions).
 
     :param chart: A pre-existing chart to draw over.
     :param layer: A pre-existing chart layer to draw in.
-    :param subset: Subset of nodes to plot.
+    :param subset: Subset of nodes to draw.
 
     :param label: Either a string to use as identical label for all nodes or a node attribute containing strings.
         Note that the auto-generated 'node' attribute contains node names.
@@ -402,24 +412,25 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
     node_size: int | str = 300, node_outline_width: float | str = 1., node_shape = 'circle', node_colour = 'teal', node_cmap: str = None, node_alpha = 1.,
     node_label: str = None, node_font_size = 15, node_font_colour = 'black', node_tooltip: list[str] = None, node_legend = False,
     edge_width = 1, edge_colour = 'grey', edge_cmap: str = None, edge_alpha = 1., edge_tooltip: list[str] = None, edge_legend = False,
+    loop_radius = .03, loop_angle = 90., loop_n_points = 30,
     curved_edges = False, edge_control_points: list[tuple[float, float]] = None, edge_interpolation = 'basis',
     arrow_width = 2, arrow_length = .1, arrow_length_is_relative = True, arrow_colour = 'black', arrow_cmap: str = None, arrow_alpha = 1., arrow_legend = False):
     '''Draw the graph G using Altair, with control over node, edge and arrow features, including filtering and curved edges.
     
-    Note that for arguments which accept node or edge attributes as alternatives to fixed values there are additional options generated in the plotting process:
+    Note that for arguments which accept node or edge attributes as alternatives to fixed values there are additional options generated in the drawing process:
     for nodes these are their name ('node') and position coordinates ('x', 'y'),
     while for edges they are their name ('edge'), order of nodes ('order'), node pair names individually and together ('source', 'target', 'pair'), and node coordinates ('x', 'y').
 
-    :param G: The graph to plot.
+    :param G: The graph to draw.
     :param pos: The node positions of G, as produced by any of the nx.*_layout functions, e.g. nx.kamada_kawai_layout,
         which is the default if pos is None (called with no edge attribute to use as weights, hence possibly missing out on more meaningful non-default positions).
     :param chart: A pre-existing chart to draw over.
 
-    :param node_subset: Subset of nodes to plot.
-    :param edge_subset: Subset of edges to plot.
-    :param show_orphans: Whether to plot nodes with no edges.
-    :param show_self_loops: Whether to plot edges starting and ending on the same node;
-        nodes with only self-loops will still be plotted (though edge-less) unless show_orphans is also False.
+    :param node_subset: Subset of nodes to draw.
+    :param edge_subset: Subset of edges to draw.
+    :param show_orphans: Whether to draw nodes with no edges.
+    :param show_self_loops: Whether to draw edges starting and ending on the same node;
+        nodes with only self-loops will still be drawn (though edge-less) unless show_orphans is also False.
         
     :param node_size: Either an int or a node attribute containing ints.
     :param node_outline_width: Either a single float for all nodes or a node attribute containing floats.
@@ -442,6 +453,15 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
     :param edge_alpha: Edge opacity.
     :param edge_tooltip: Edge attributes to show on hover.
     :param edge_legend: Whether to show a legend for attribute-controlled edge features.
+
+    :param loop_radius: The radius of self-loop edges.
+    :param loop_angle: The direction (in degrees) in which self-loops are drawn from the node; above it by default.
+    :param loop_n_points: Number of points (INCLUDING the node itself) to draw self-loop edges.
+        The default value is high in order to approximate a circle in both straight and curved edge drawing cases,
+        HOWEVER, low values such as 2, 3, and 4 produce nice shapes pointed at the node in both cases
+        (in the straight-edge case, respectively: a short segment, a triangle, and a square).
+        NOTE: to draw straight edges but interpolation-curved loops (rather than by high manual point count), set control_points to [] rather than None
+        (or really any list of points whose 2nd coordinate is 0).
 
     :param curved_edges: Whether edges should be curved (using control_points and interpolate arguments).
     :param edge_control_points: The control points to use the interpolation method on; they should be expressed in coordinates relative to their straight edge:
@@ -480,6 +500,7 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
         edges = draw_networkx_edges(G, pos, chart = chart, subset = edge_subset,
             width = edge_width, colour = edge_colour, cmap = edge_cmap, alpha = edge_alpha,
             tooltip = edge_tooltip, legend = edge_legend,
+            loop_radius = loop_radius, loop_angle = loop_angle, loop_n_points = loop_n_points,
             curved_edges = curved_edges, control_points = edge_control_points, interpolation = edge_interpolation)
 
         # Arrows
