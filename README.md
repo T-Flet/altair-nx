@@ -101,15 +101,15 @@ Also in the [tutorial notebook](examples/altair-nx-tutorial.ipynb):
 [github-discussions-link]:  https://github.com/T-Flet/altair-nx/discussions
 [gitter-badge]:             https://badges.gitter.im/https://github.com/T-Flet/altair-nx/community.svg
 [gitter-link]:              https://gitter.im/https://github.com/T-Flet/altair-nx/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge
-[pypi-link]:                https://pypi.org/project/altair-nx/
+[pypi-link]:                https://pypi.org/project/altair-nx
 [pypi-platforms]:           https://img.shields.io/pypi/pyversions/altair-nx
 [pypi-version]:             https://img.shields.io/pypi/v/altair-nx
 [pypi-downloads-badge]:     https://pepy.tech/badge/altair-nx
 [pypi-downloads-link]:      https://pepy.tech/project/altair-nx
 [python-versions-badge]:    https://img.shields.io/pypi/pyversions/altair-nx.svg
-[python-versions-link]:     https://pypi.python.org/pypi/altair-nx/
-[rtd-badge]:                https://readthedocs.org/projects/altair-nx/badge/?version=latest
-[rtd-link]:                 https://altair-nx.readthedocs.io/en/latest/?badge=latest
+[python-versions-link]:     https://pypi.python.org/pypi/altair-nx
+[rtd-badge]:                https://readthedocs.org/projects/altair-nx/badge/?version=stable
+[rtd-link]:                 https://altair-nx.readthedocs.io/en/stable
 [license-badge]:            https://img.shields.io/pypi/l/altair-nx.svg
 [license-link]:             https://github.com/T-Flet/altair-nx/blob/master/LICENSE
 <!-- prettier-ignore-end -->
