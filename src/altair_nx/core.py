@@ -71,7 +71,6 @@ def to_pandas_edges(G: nx.Graph, pos: dict[..., NDArray[np.float_]], control_poi
             for n in range(1, loop_n_points): # Pairs of relative coordinates: (D proportion parallel to D, D proportion perpendicular to D)
                 point_angle = (loop_angle - pi + n * 2 * pi / loop_n_points) % (2 * pi)
                 rows.append(dict(
-                    loop_angle = point_angle * 180 / pi,
                     edge = i, order = order,
                     source = e[0], target = e[1], pair = e,
                     x = centre_x + loop_radius * cos(point_angle),

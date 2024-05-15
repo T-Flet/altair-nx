@@ -5,7 +5,6 @@ import altair as alt
 import networkx as nx
 
 from copy import deepcopy
-from warnings import warn
 
 from .core import to_pandas_edges, to_pandas_edge_arrows, to_pandas_nodes
 
@@ -412,7 +411,7 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
     node_size: int | str = 300, node_outline_width: float | str = 1., node_shape = 'circle', node_colour = 'teal', node_cmap: str = None, node_alpha = 1.,
     node_label: str = None, node_font_size = 15, node_font_colour = 'black', node_tooltip: list[str] = None, node_legend = False,
     edge_width = 1, edge_colour = 'grey', edge_cmap: str = None, edge_alpha = 1., edge_tooltip: list[str] = None, edge_legend = False,
-    loop_radius = .03, loop_angle = 90., loop_n_points = 30,
+    loop_radius = .05, loop_angle = 90., loop_n_points = 30,
     curved_edges = False, edge_control_points: list[tuple[float, float]] = None, edge_interpolation = 'basis',
     arrow_width = 2, arrow_length = .1, arrow_length_is_relative = True, arrow_colour = 'black', arrow_cmap: str = None, arrow_alpha = 1., arrow_legend = False):
     '''Draw the graph G using Altair, with control over node, edge and arrow features, including filtering and curved edges.
@@ -436,7 +435,7 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
     :param node_outline_width: Either a single float for all nodes or a node attribute containing floats.
     :param node_shape: Either an Altair point-mark shape specifier or a node attribute containing the same.
         Note that this also includes SVG path strings; see https://altair-viz.github.io/user_guide/marks/point.html.
-    :param node_colour: Either a colour string ('' for outline with no fill) or a node attribute containing colour strings if cmap is None and floats if not None.
+    :param node_colour: Either a colour string ('' for outline with no fill) or a node attribute containing colour strings if node_cmap is None and floats if not None.
     :param node_cmap: Colourmap for mapping intensities of nodes (requires node_colour to be a node attribute containing floats).
     :param node_alpha: Node opacity.
     
@@ -448,7 +447,7 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
     :param node_legend: Whether to show a legend for attribute-controlled node features.
 
     :param edge_width: Either an int or an edge attribute containing ints.
-    :param edge_colour: Either a colour string or an edge attribute containing colour strings if cmap is None and floats if not None.
+    :param edge_colour: Either a colour string or an edge attribute containing colour strings if edge_cmap is None and floats if not None.
     :param edge_cmap: Colourmap for mapping intensities of edges (requires edge_colour to be an edge attribute containing floats).
     :param edge_alpha: Edge opacity.
     :param edge_tooltip: Edge attributes to show on hover.
@@ -479,14 +478,14 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
     :param arrow_width: Either an int or an edge attribute containing ints.
     :param arrow_length: The proportion of the line to be occupied by the arrow.
     :param arrow_length_is_relative: Whether arrow_length should be interpreted as a proportion of its edge length instead of an absolute measure.
-    :param arrow_colour: Either a colour string or an edge attribute containing colour strings if cmap is None and floats if not None.
+    :param arrow_colour: Either a colour string or an edge attribute containing colour strings if arrow_cmap is None and floats if not None.
     :param arrow_cmap: Colourmap for mapping intensities of arrows (requires arrow_colour to be an edge attribute containing floats).
     :param arrow_alpha: Arrow opacity.
     :param arrow_legend: Whether to show a legend for attribute-controlled arrow features.
 
-    :return: An Altair chart of the given graph.
+    :return: An Altair chart of the given graph; its possible layers (.layer) are [edges, arrows, nodes, labels], in this order,
+        but arrows are present only if G is directed and labels only if node_label is not None.
     '''
-    if nx.is_directed(G) and not curved_edges: warn('Drawing a directed graph without curved edges is inadvisable since opposite-direction edges between two nodes will be drawn over each other')
 
     if not (show_self_loops and show_orphans):
         G = deepcopy(G)
