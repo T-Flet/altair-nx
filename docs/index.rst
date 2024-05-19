@@ -23,7 +23,7 @@ Every function argument is explained here (and most IDEs will pull from it on ho
 but the simplest starting point for altair-nx is playing around with the `tutorial notebook <https://github.com/T-Flet/altair-nx/blob/master/examples/altair-nx-tutorial.ipynb>`_).
 
 *PS: if you draw something cool or which could be a good example of using combinations of the various features,
-feel free to put it in a notebook and open a pull request with it added to the the* `examples' folder <https://github.com/T-Flet/altair-nx/tree/master/examples>`_.
+feel free to put it in a notebook and open a pull request with it added to the the* `examples folder <https://github.com/T-Flet/altair-nx/tree/master/examples>`_.
 
 The functions are grouped as follows:
 

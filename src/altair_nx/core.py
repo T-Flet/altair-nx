@@ -15,7 +15,8 @@ def to_pandas_nodes(G: nx.Graph, pos: dict[..., NDArray[np.float_]]):
     '''Convert Graph nodes to pandas DataFrame meant for drawing with Altair.
     
     :param G: The graph to draw.
-    :param pos: The node positions of G, as produced by any of the nx.*_layout functions, e.g. nx.kamada_kawai_layout, which is the default if pos is None.
+    :param pos: The node positions of G, as produced by any of the nx.*_layout functions, e.g. nx.kamada_kawai_layout.
+        Note that most layouts use random seeds; for reproducible results set np.random.seed(...) before they are called.
     
     :return: A pandas DataFrame of nodes.
     '''
@@ -25,11 +26,12 @@ def to_pandas_nodes(G: nx.Graph, pos: dict[..., NDArray[np.float_]]):
 
 
 def to_pandas_edges(G: nx.Graph, pos: dict[..., NDArray[np.float_]], control_points: list[tuple[float, float]] = None,
-    loop_radius = .03, loop_angle = 90., loop_n_points = 30):
+    loop_radius = .05, loop_angle = 90., loop_n_points = 30):
     '''Convert Graph edges to pandas DataFrame meant for drawing with Altair.
 
     :param G: The graph to draw.
-    :param pos: The node positions of G, as produced by any of the nx.*_layout functions, e.g. nx.kamada_kawai_layout, which is the default if pos is None.
+    :param pos: The node positions of G, as produced by any of the nx.*_layout functions, e.g. nx.kamada_kawai_layout.
+        Note that most layouts use random seeds; for reproducible results set np.random.seed(...) before they are called.
     :param control_points: Points to insert in the dataframe between the source and target point rows of each edge;
         they should be expressed in coordinates relative to their straight edge:
         (proportion of edge length parallel to the edge, proportion of edge length perpendicular (anticlockwise) to the edge).
@@ -106,7 +108,8 @@ def to_pandas_edge_arrows(G: nx.Graph, pos: dict[..., NDArray[np.float_]], lengt
     Note that arrows are not drawn for self-loops since they would convey no extra information (and also to avoid unnecessary clutter).
     
     :param G: The graph to draw.
-    :param pos: The node positions of G, as produced by any of the nx.*_layout functions, e.g. nx.kamada_kawai_layout, which is the default if pos is None.
+    :param pos: The node positions of G, as produced by any of the nx.*_layout functions, e.g. nx.kamada_kawai_layout.
+        Note that most layouts use random seeds; for reproducible results set np.random.seed(...) before they are called.
     :param length: A relative (i.e. proportion of edge length) or absolute measure of arrow length (the interpretation is determined by length_is_relative).
     :param length_is_relative: Whether arrow_length should be interpreted as a proportion of its edge length instead of an absolute measure.
     :param control_points: Points to insert in the dataframe between the source and target point rows of each edge;
@@ -155,7 +158,8 @@ def to_chart(G: nx.Graph, pos: dict[..., NDArray[np.float_]]):
     '''Construct a single Altair Chart for the given Graph and node positions.
     
     :param G: The graph to draw.
-    :param pos: The node positions of G, as produced by any of the nx.*_layout functions, e.g. nx.kamada_kawai_layout, which is the default if pos is None.
+    :param pos: The node positions of G, as produced by any of the nx.*_layout functions, e.g. nx.kamada_kawai_layout.
+        Note that most layouts use random seeds; for reproducible results set np.random.seed(...) before they are called.
     
     :return: An Altair chart with layers for G's edges and nodes.
     '''
