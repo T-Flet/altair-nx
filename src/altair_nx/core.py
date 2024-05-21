@@ -1,7 +1,4 @@
 import pandas as pd
-import numpy as np
-from numpy.typing import NDArray
-
 import networkx as nx
 import altair as alt
 
@@ -11,7 +8,7 @@ from itertools import chain
 from ._utils import despine
 
 
-def to_pandas_nodes(G: nx.Graph, pos: dict[..., NDArray[np.float_]]):
+def to_pandas_nodes(G: nx.Graph, pos: dict[..., tuple[float, float]]):
     '''Convert Graph nodes to pandas DataFrame meant for drawing with Altair.
     
     :param G: The graph to draw.
@@ -25,7 +22,7 @@ def to_pandas_nodes(G: nx.Graph, pos: dict[..., NDArray[np.float_]]):
 
 
 
-def to_pandas_edges(G: nx.Graph, pos: dict[..., NDArray[np.float_]], control_points: list[tuple[float, float]] = None,
+def to_pandas_edges(G: nx.Graph, pos: dict[..., tuple[float, float]], control_points: list[tuple[float, float]] = None,
     loop_radius = .05, loop_angle = 90., loop_n_points = 30):
     '''Convert Graph edges to pandas DataFrame meant for drawing with Altair.
 
@@ -102,7 +99,7 @@ def to_pandas_edges(G: nx.Graph, pos: dict[..., NDArray[np.float_]], control_poi
 
 
 
-def to_pandas_edge_arrows(G: nx.Graph, pos: dict[..., NDArray[np.float_]], length: float, length_is_relative = False, control_points: list[tuple[float, float]] = None):
+def to_pandas_edge_arrows(G: nx.Graph, pos: dict[..., tuple[float, float]], length: float, length_is_relative = False, control_points: list[tuple[float, float]] = None):
     '''Convert Graph edge arrows to pandas DataFrame meant for drawing with Altair.
 
     Note that arrows are not drawn for self-loops since they would convey no extra information (and also to avoid unnecessary clutter).
@@ -154,7 +151,7 @@ def to_pandas_edge_arrows(G: nx.Graph, pos: dict[..., NDArray[np.float_]], lengt
 
 
 
-def to_chart(G: nx.Graph, pos: dict[..., NDArray[np.float_]]):
+def to_chart(G: nx.Graph, pos: dict[..., tuple[float, float]]):
     '''Construct a single Altair Chart for the given Graph and node positions.
     
     :param G: The graph to draw.

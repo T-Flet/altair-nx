@@ -1,6 +1,3 @@
-import numpy as np
-from numpy.typing import NDArray
-
 import altair as alt
 import networkx as nx
 
@@ -9,7 +6,7 @@ from copy import deepcopy
 from .core import to_pandas_edges, to_pandas_edge_arrows, to_pandas_nodes
 
 
-def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
+def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None,
     chart: alt.Chart = None, layer: alt.Chart = None, subset: list = None,
     width = 1, colour = 'grey', cmap: str = None, alpha = 1.,
     tooltip: list[str] = None, legend = False,
@@ -134,7 +131,7 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] =
 
 
 
-def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
+def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None,
     chart: alt.Chart = None, layer: alt.Chart = None, subset: list = None,
     width = 1, length = .1, length_is_relative = True,
     colour = 'grey', cmap: str = None, alpha = 1.,
@@ -234,7 +231,7 @@ def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] 
 
 
 
-def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
+def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None,
     chart: alt.Chart = None, layer: alt.Chart = None, subset: list = None,
     size: int | str = 400, outline_width: float | str = 1., shape = 'circle',
     colour = 'teal', cmap: str = None, alpha = 1.,
@@ -339,7 +336,7 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] =
 
 
 
-def draw_networkx_labels(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
+def draw_networkx_labels(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None,
     chart: alt.Chart = None, layer: alt.Chart = None, subset: list = None,
     label: str = None, font_size = 15, font_colour = 'black'):
     '''Draw the node labels of graph G using Altair, with control over various features, including node filtering, and font.
@@ -415,7 +412,7 @@ def draw_networkx_labels(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] 
 
 
 
-def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None, chart: alt.Chart = None,
+def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None, chart: alt.Chart = None,
     node_subset: list = None, edge_subset: list = None, show_orphans = True, show_self_loops = True,
     node_size: int | str = 400, node_outline_width: float | str = 1., node_shape = 'circle', node_colour = 'teal', node_cmap: str = None, node_alpha = 1.,
     node_label: str = None, node_font_size = 15, node_font_colour = 'black', node_tooltip: list[str] = None, node_legend = False,
@@ -423,7 +420,7 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
     loop_radius = .05, loop_angle = 90., loop_n_points = 30,
     curved_edges = False, edge_control_points: list[tuple[float, float]] = None, edge_interpolation = 'basis',
     arrow_width = 2, arrow_length = .1, arrow_length_is_relative = True, arrow_colour = 'black', arrow_cmap: str = None, arrow_alpha = 1., arrow_legend = False,
-    chart_width: float | None = 500., chart_height: float | None = 300.):
+    chart_width: float | None = 500., chart_height: float | None = 300., chart_padding = .05):
     '''Draw the graph G using Altair, with control over node, edge and arrow features, including filtering and curved edges.
     
     Note that for arguments which accept node or edge attributes as alternatives to fixed values there are additional options generated in the drawing process:
@@ -512,16 +509,18 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
     :param chart_height: Height to set the chart to (while maintaining equality between the drawn axes' units). Works in combination with chart_width:
         either size is allowed to be None (though not both), letting the graph's own aspect ratio determine the other;
         if both are not None, then the graph's aspect ratio is reshaped to the given one.
+    :param chart_padding: Proportion of the larger of the two axes to use as padding between graph and chart borders (followed by a slight padding increase due to final aspect ratio adjustments).
 
     :return: An Altair chart of the given graph; its possible layers (`.layer`) are [edges, arrows, nodes, labels], in this order,
         but arrows are present only if G is directed and labels only if node_label is not None.
         Note: the node coordinates will be different from those in the input pos, as scaling takes place to ensure that graph and chart aspect ratios match
         (so that the x and y axes' units are equal);
-        in particular, the shorter axis will have length of approximately 1
+        in particular, the shorter axis will have length of approximately 1 + 2 * chart_padding
         (this is to ensure that the size of self-loops for a given loop_radius value is consistent relative to chart size).
         The new coordinates can be extracted from the dataframe of the node layer: `output.layer[index_of_node_layer].data`.
+        The chart size and axes' domains can be copied to a new chart with the copy_size_and_axes function (exported by default),
+        or can be extracted manually with, e.g. `output_chart.width` and `output_chart.encoding.x['scale']['domain']`.
     '''
-
     if not (show_self_loops and show_orphans):
         G = deepcopy(G)
         if not show_self_loops: G.remove_edges_from(nx.selfloop_edges(G))
@@ -530,7 +529,7 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
     if not pos: pos = nx.drawing.layout.kamada_kawai_layout(G)
 
 
-    # ---------- Scale coordinates ------------
+    # ---------- Scale the coordinates ------------
 
     if chart_width is None and chart_height is None: raise ValueError('chart_width and chart_height cannot both be None; if one is None then the other is determined by the graph\'s own aspect ratio.')
 
@@ -545,7 +544,9 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
         pos = {n: (xy[0] * chart_width/chart_height, xy[1]) if chart_width >= chart_height else (xy[0], xy[1] * chart_height/chart_width) for n, xy in pos.items()}
 
 
-    # ---------- Construct and assemble the layers ------------
+    # ---------- Construct the layers ------------
+
+    layers = []
 
     # Edges
     if len(G.edges):
@@ -554,6 +555,7 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
             tooltip = edge_tooltip, legend = edge_legend,
             loop_radius = loop_radius, loop_angle = loop_angle, loop_n_points = loop_n_points,
             curved_edges = curved_edges, control_points = edge_control_points, interpolation = edge_interpolation)
+        layers.append(edges)
 
         # Arrows
         if nx.is_directed(G):
@@ -562,6 +564,7 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
                 colour = arrow_colour, cmap = arrow_cmap, alpha = arrow_alpha,
                 tooltip = edge_tooltip, legend = arrow_legend,
                 curved_edges = curved_edges, control_points = edge_control_points)
+            layers.append(arrows)
 
     # Nodes
     if len(G.nodes):
@@ -569,25 +572,39 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., NDArray[np.float_]] = None,
             size = node_size, outline_width = node_outline_width, shape = node_shape,
             colour = node_colour, cmap = node_cmap, alpha = node_alpha,
             tooltip = node_tooltip, legend = node_legend)
+        layers.append(nodes)
 
         # Node labels
         if node_label:
             labels = draw_networkx_labels(G, pos, chart = chart, subset = node_subset,
                 label = node_label, font_size = node_font_size, font_colour = node_font_colour)
+            layers.append(labels)
 
-    # Layer the chart
-    viz = []
-    if len(G.edges):
-        viz.append(edges)
-        if nx.is_directed(G): viz.append(arrows)
 
-    if len(G.nodes):
-        viz.append(nodes)
-        if node_label: viz.append(labels)
+    # ---------- Assemble the layers and make padded axes match the aspect ratio ------------
 
-    if viz: viz = alt.layer(*viz)
+    if layers:
+        # Extract the coordinate ranges from the layers which are present (since drawn elements, e.g. self-loops or large node sizes, might not match node coordinate ranges)
+        min_xs, max_xs, min_ys, max_ys = zip(*((min(l.data['x']), max(l.data['x']), min(l.data['y']), max(l.data['y'])) for l in layers))
+        x_range = (max_x := max(max_xs)) - (min_x := min(min_xs))
+        y_range = (max_y := max(max_ys)) - (min_y := min(min_ys))
+
+        # Compute new coordinate ranges with uniform padding AND s.t. the aspect ratio matches the required one
+        #   It is cleaner to work in terms of longer and shorter sides rather than real x and y; reassign at the end
+        long_axis, short_axis, long_side, short_side = (x_range, y_range, chart_width, chart_height) if chart_width >= chart_height else (y_range, x_range, chart_height, chart_width)
+        long_padding = short_padding = chart_padding * max(x_range, y_range) # use the larger of the two as uniform padding
+
+        # Impose the chart's aspect ratio onto the axes by increasing the length of one of the two (i.e. avoid going below the stated padding; only above)
+        if (raw_long := long_axis + 2 * long_padding) / (raw_short := short_axis + 2 * short_padding) >= long_side / short_side:
+            short_padding = ((raw_long * short_side / long_side) - short_axis) / 2 # i.e. (correct-aspect-ratio raw_short - short_axis) / 2
+        else: long_padding = ((raw_short * long_side / short_side) - long_axis) / 2 # i.e. (correct-aspect-ratio raw_long - long_axis) / 2
+
+        x_padding, y_padding = (long_padding, short_padding) if chart_width >= chart_height else (short_padding, long_padding)
+
+        return alt.layer(*layers).encode(
+            alt.X().scale(domain = (min_x - x_padding, max_x + x_padding)),
+            alt.Y().scale(domain = (min_y - y_padding, max_y + y_padding))
+        ).properties(width = chart_width, height = chart_height)
     else: raise ValueError('G does not contain any nodes or edges.')
-
-    return viz.properties(width = chart_width, height = chart_height)
 
 

@@ -22,9 +22,13 @@ but after a full code-base rework (causing backward and forward incompatibility)
 and the implementation of new features (e.g. curved edges, self loops, and greater customisation),
 it became reasonable for it to be its own library.
 
+
+
 ## Installation:
 
-```pip install altair-nx```
+```
+pip install altair-nx
+```
 
 
 
@@ -60,6 +64,7 @@ viz.interactive()
 <img src = 'docs/_img/simplest.png' width = '350'>
 
 
+
 ### Minimal customisation
 
 Many of **altair-nx**'s style configuration arguments (most being similar to NetworkX's)
@@ -84,6 +89,7 @@ viz = anx.draw_networkx(G, pos,
 viz.interactive()
 ```
 <img src = 'docs/_img/customised.png' width = '450'>
+
 
 
 ### Leverage Altair for deeper interactivity
