@@ -19,7 +19,7 @@
 This project started as a fork of [nx-altair](https://github.com/Zsailer/nx_altair) (inactive since 2020)
 meant for fixing issues and merging pull requests,
 but after a full code-base rework (causing backward and forward incompatibility)
-and the implementation of new features (e.g. curved edges, self loops, and greater customisation),
+and the implementation of new features (e.g. curved edges, self loops, and much greater customisation),
 it became reasonable for it to be its own library.
 
 
@@ -61,7 +61,7 @@ viz = anx.draw_networkx(G, pos)
 viz.interactive()
 ```
 
-<img src = 'docs/_img/simplest.png' width = '350'>
+<img src = 'docs/_img/simplest.png' width = '500'>
 
 
 
@@ -88,15 +88,19 @@ viz = anx.draw_networkx(G, pos,
 # Display it and make it interactive
 viz.interactive()
 ```
-<img src = 'docs/_img/customised.png' width = '450'>
+<img src = 'docs/_img/customised.png' width = '500'>
 
 
 
 ### Leverage Altair for deeper interactivity
 
-Also in the [tutorial notebook](examples/altair-nx-tutorial.ipynb):
+Make a chart depend on a selection over the graph:
+<video src = 'https://github.com/T-Flet/altair-nx/assets/6699494/b21a147a-ca3f-4e7b-a006-5168a6fecc35'>
 
-<video src = 'https://github.com/T-Flet/altair-nx/assets/6699494/ebea7310-7235-4865-86e8-85d7de5a0d09'>
+Create controls to affect chart parameters:
+<video src = 'https://github.com/T-Flet/altair-nx/assets/6699494/76cff2fe-90e2-43bd-ae92-5b77883cf230'>
+
+Both examples are in the [tutorial notebook](examples/altair-nx-tutorial.ipynb).
 
 
 
