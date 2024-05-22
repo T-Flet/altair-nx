@@ -120,8 +120,7 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
     # ---------- Construct the visualisation ------------
 
     edge_chart = edge_chart.mark_line(**marker_attrs).encode(
-        x = alt.X('x', axis = alt.Axis(title = '', grid = False, labels = False, ticks = False)),
-        y = alt.Y('y', axis = alt.Axis(title = '', grid = False, labels = False, ticks = False)),
+        x = alt.X('x').axis(None), y = alt.Y('y').axis(None),
         detail = 'edge', order = 'order', **encoded_attrs
     )
 
@@ -220,8 +219,7 @@ def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
     # ---------- Construct the visualisation ------------
 
     edge_chart = edge_chart.mark_line(**marker_attrs).encode(
-        x = alt.X('x', axis = alt.Axis(grid = False, labels = False, ticks = False)),
-        y = alt.Y('y', axis = alt.Axis(grid = False, labels = False, ticks = False)),
+        x = alt.X('x').axis(None), y = alt.Y('y').axis(None),
         detail = 'edge', **encoded_attrs
     )
 
@@ -233,8 +231,9 @@ def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
 
 def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None,
     chart: alt.Chart = None, layer: alt.Chart = None, subset: list = None,
-    size: int | str = 400, outline_width: float | str = 1., shape = 'circle',
+    size: int | str = 400, shape = 'circle',
     colour = 'teal', cmap: str = None, alpha = 1.,
+    outline_width: float | str = 1., outline_colour: str = None,
     tooltip: list[str] = None, legend = False):
     '''Draw the nodes of graph G using Altair, with control over various features, including filtering, and sizes.
     
@@ -251,14 +250,17 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
     :param subset: Subset of nodes to draw.
 
     :param size: Either an int or a node attribute containing ints.
-    :param outline_width: Either a single float for all nodes or a node attribute containing floats.
     :param shape: Either an Altair point-mark shape specifier or a node attribute containing the same.
         Note that this also includes SVG path strings; see https://altair-viz.github.io/user_guide/marks/point.html.
 
-    :param colour: Either a colour string or a node attribute containing colour strings if cmap is None and floats if not None.
-        Can also use '' to make nodes only outlines with no fill, but this makes summoning tooltips on hover difficult.
+    :param colour: A colour string, None, or a node attribute containing colour strings if cmap is None and floats if not None.
+        Setting it to None (or any non-colour and non-column string) produces nodes with outlines and no fill, but this makes summoning tooltips on hover difficult.
     :param cmap: Colourmap for mapping intensities of nodes (requires node_colour to be a node attribute containing floats).
     :param alpha: Node opacity.
+
+    :param outline_width: Either a single float for all nodes or a node attribute containing floats.
+    :param outline_colour: A colour string, None, or a node attribute containing colour strings if cmap is None and floats if not None.
+        Setting it to None makes it match the fill colour.
 
     :param tooltip: Node attributes to show on hover.
     :param legend: Whether to show a legend for attribute-controlled node features.
@@ -303,10 +305,17 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
     elif shape in df_nodes.columns: encoded_attrs['shape'] = alt.Shape(shape, legend = legend)
     else: marker_attrs['shape'] = shape
 
-    # Colour
-    if not isinstance(colour, str): raise TypeError('node_colour must be a string.')
-    if colour in df_nodes.columns: encoded_attrs['fill'] = colour
-    else: marker_attrs['fill'] = colour
+    # Fill colour
+    if colour is not None: # allow nodes to be outlines with no fill
+        if not isinstance(colour, str): raise TypeError('colour must be a string or None for no fill.')
+        if colour in df_nodes.columns: encoded_attrs['fill'] = colour
+        else: marker_attrs['fill'] = colour
+
+    # Outline colour
+    if outline_colour is not None: # match fill colour
+        if not isinstance(outline_colour, str): raise TypeError('outline_colour must be a string or None to match fill colour.')
+        if outline_colour in df_nodes.columns: encoded_attrs['color'] = outline_colour
+        else: marker_attrs['color'] = outline_colour
 
     # Opacity
     if isinstance(alpha, str): encoded_attrs['opacity'] = alpha
@@ -325,8 +334,7 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
     # ---------- Construct the visualisation ------------
 
     node_chart = node_chart.mark_point(**marker_attrs).encode(
-        x = alt.X('x', axis = alt.Axis(grid = False, labels = False, ticks = False)),
-        y = alt.Y('y', axis = alt.Axis(grid = False, labels = False, ticks = False)),
+        x = alt.X('x').axis(None), y = alt.Y('y').axis(None),
         **encoded_attrs
     )
 
@@ -401,8 +409,7 @@ def draw_networkx_labels(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
     # ---------- Construct the visualisation ------------
 
     node_chart = node_chart.mark_text(baseline = 'middle', **marker_attrs).encode(
-        x = alt.X('x', axis = alt.Axis(grid = False, labels = False, ticks = False)),
-        y = alt.Y('y', axis = alt.Axis(grid = False, labels = False, ticks = False)),
+        x = alt.X('x').axis(None), y = alt.Y('y').axis(None),
         **encoded_attrs
     )
 
@@ -414,7 +421,8 @@ def draw_networkx_labels(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
 
 def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None, chart: alt.Chart = None,
     node_subset: list = None, edge_subset: list = None, show_orphans = True, show_self_loops = True,
-    node_size: int | str = 400, node_outline_width: float | str = 1., node_shape = 'circle', node_colour = 'teal', node_cmap: str = None, node_alpha = 1.,
+    node_size: int | str = 400, node_shape = 'circle', node_colour = 'teal', node_cmap: str = None, node_alpha = 1.,
+    node_outline_width: float | str = 1., node_outline_colour: str = None,
     node_label: str = None, node_font_size = 15, node_font_colour = 'black', node_tooltip: list[str] = None, node_legend = False,
     edge_width = 1, edge_colour = 'grey', edge_cmap: str = None, edge_alpha = 1., edge_tooltip: list[str] = None, edge_legend = False,
     loop_radius = .05, loop_angle = 90., loop_n_points = 30,
@@ -426,6 +434,9 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None
     Note that for arguments which accept node or edge attributes as alternatives to fixed values there are additional options generated in the drawing process:
     for nodes these are their name ('node') and position coordinates ('x', 'y'),
     while for edges they are their name ('edge'), order of nodes ('order'), node pair names individually and together ('source', 'target', 'pair'), and node coordinates ('x', 'y').
+
+    Extra customisation can be performed through Altair chart properties,
+    e.g. `.properties(title = '...')` to set properties, or `.configure_view(stroke = None)` to remove chart borders or set other configuration settings.
 
     This function ensures that graph and chart aspect ratios always match by adapting one to the other or vice versa depending on whether one or none of chart_width and chart_height is None.
     For example, if all node coordinates (in pos) were along a thin rectangle, a square chart would not be ideal to draw them; this function will ensure that both are the same shape.
@@ -447,13 +458,16 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None
         nodes with only self-loops will still be drawn (though edge-less) unless show_orphans is also False.
         
     :param node_size: Either an int or a node attribute containing ints.
-    :param node_outline_width: Either a single float for all nodes or a node attribute containing floats.
     :param node_shape: Either an Altair point-mark shape specifier or a node attribute containing the same.
         Note that this also includes SVG path strings; see https://altair-viz.github.io/user_guide/marks/point.html.
-    :param node_colour: Either a colour string or a node attribute containing colour strings if node_cmap is None and floats if not None.
-         Can also use '' to make nodes only outlines with no fill, but this makes summoning tooltips on hover difficult.
+    :param node_colour: A colour string, None, or a node attribute containing colour strings if cmap is None and floats if not None.
+        Setting it to None (or any non-colour and non-column string) produces nodes with outlines and no fill, but this makes summoning tooltips on hover difficult.
     :param node_cmap: Colourmap for mapping intensities of nodes (requires node_colour to be a node attribute containing floats).
     :param node_alpha: Node opacity.
+
+    :param node_outline_width: Either a single float for all nodes or a node attribute containing floats.
+    :param node_outline_colour: A colour string, None, or a node attribute containing colour strings if cmap is None and floats if not None.
+        Setting it to None makes it match the fill colour.
     
     :param node_label: Either a string to use as identical label for all nodes or a node attribute containing strings.
         Note that the auto-generated 'node' attribute contains node names.
@@ -569,8 +583,9 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None
     # Nodes
     if len(G.nodes):
         nodes = draw_networkx_nodes(G, pos, chart = chart, subset = node_subset,
-            size = node_size, outline_width = node_outline_width, shape = node_shape,
+            size = node_size, shape = node_shape,
             colour = node_colour, cmap = node_cmap, alpha = node_alpha,
+            outline_width = node_outline_width, outline_colour = node_outline_colour,
             tooltip = node_tooltip, legend = node_legend)
         layers.append(nodes)
 

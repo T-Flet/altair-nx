@@ -28,4 +28,12 @@ altair\_nx.draw_altair module
    :undoc-members:
    :show-inheritance:
 
+altair\_nx.util module
+-----------------------------
+
+.. automodule:: altair_nx.util
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 

@@ -5,7 +5,7 @@ import altair as alt
 from math import atan2, sin, cos, pi, sqrt
 from itertools import chain
 
-from ._utils import despine
+from .util import despine
 
 
 def to_pandas_nodes(G: nx.Graph, pos: dict[..., tuple[float, float]]):
