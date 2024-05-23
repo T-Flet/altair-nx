@@ -50,10 +50,11 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
         (or really any list of points whose 2nd coordinate is 0).
 
     :param curved_edges: Whether edges should be curved (using control_points and interpolate arguments).
-    :param control_points: The control points to use the interpolation method on; they should be expressed in coordinates relative to their straight edge:
+    :param control_points: The intermediate points to place along edges, which, depending on curved_edges, are either used for interpolation or are connected with straight lines; they should be expressed as a tuple of coordinates relative to their straight edge:
         (proportion of edge length parallel to the edge, proportion of edge length perpendicular (anticlockwise) to the edge).
-        E.g. the default value of [(.5, .1)] is a single control point halfway along the edge and .1 of its length to the left of it.
-    :param interpolation: Interpolation method for curved edges (which are built on control points provided in edge-relative coordinates in curved_edges).
+        E.g. the default value is [(.5, .1)] if curved_edges is True and [(.5, 0.)] if False,
+        i.e. is a single control point halfway along the edge, either .1 of its length to the left of it or on it.
+    :param interpolation: Interpolation method for curved edges (which are built on control points provided in edge-relative coordinates in control_points).
         The default interpolation is a cubic spline (i.e. 'basis').
         Interactive examples of possible values: https://altair-viz.github.io/user_guide/marks/line.html
         Corresponding descriptions: https://d3js.org/d3-shape/curve
@@ -67,8 +68,7 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
 
     :return: An Altair chart of the edges of given graph.
     '''
-    if curved_edges and control_points is None: control_points = [(.5, .1)]
-    elif not curved_edges: control_points = None # Because to_pandas_edges relies only on control_points to know whether edges are supposed to be curved
+    if control_points is None: control_points = [(.5, .1)] if curved_edges else [(.5, 0.)] # default curve and at least one point in the middle in order to show tooltips
 
     if layer is not None:
         df_edges = layer.data
@@ -132,6 +132,7 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
 
     # ---------- Finalise the fields and construct the visualisation ------------
 
+    marker_attrs['point'] = 'transparent' # to make triggering tooltips easier
     encoded_attrs = dict(x = alt.X('x').axis(None), y = alt.Y('y').axis(None), detail = 'edge', order = 'order', **encoded_attrs)
 
     # Inject custom fields without restrictions or safeguards
@@ -180,15 +181,14 @@ def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
     :param legend: Whether to show a legend for attribute-controlled arrow features.
 
     :param curved_edges: Whether the edges for which arrows are to be drawn are curved.
-    :param control_points: The control points used for the curved edges for which arrows are to be drawn are curved.
+    :param control_points: The intermediate points placed along edges, based on which (along with curved_edges) arrows are to be drawn.
 
     :param mark_kwargs: Custom fields to inject into the `.mark_line` call without restrictions or safeguards; will overwrite existing fields on overlaps.
     :param encode_kwargs: Custom fields to inject into the `.encode` call without restrictions or safeguards; will overwrite existing fields on overlaps.
 
     :return: An Altair chart of the edges of given graph.
     '''
-    if curved_edges and control_points is None: control_points = [(.5, .1)]
-    elif not curved_edges: control_points = None # Because to_pandas_edge_arrows relies only on control_points to know whether edges are supposed to be curved
+    if control_points is None: control_points = [(.5, .1)] if curved_edges else [(.5, 0.)] # default curve and at least one point in the middle in order to show tooltips
 
     if layer is not None:
         df_edge_arrows = layer.data
@@ -247,6 +247,7 @@ def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
 
     # ---------- Finalise the fields and construct the visualisation ------------
 
+    marker_attrs['point'] = 'transparent' # to make triggering tooltips easier
     encoded_attrs = dict(x = alt.X('x').axis(None), y = alt.Y('y').axis(None), detail = 'edge', **encoded_attrs)
 
     # Inject custom fields without restrictions or safeguards
@@ -573,10 +574,11 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None
         (or really any list of points whose 2nd coordinate is 0).
 
     :param curved_edges: Whether edges should be curved (using control_points and interpolate arguments).
-    :param edge_control_points: The control points to use the interpolation method on; they should be expressed in coordinates relative to their straight edge:
+    :param edge_control_points: The intermediate points to place along edges, which, depending on curved_edges, are either used for interpolation or are connected with straight lines; they should be expressed as a tuple of coordinates relative to their straight edge:
         (proportion of edge length parallel to the edge, proportion of edge length perpendicular (anticlockwise) to the edge).
-        E.g. the default value of [(.5, .1)] is a single control point halfway along the edge and .1 of its length to the left of it.
-    :param edge_interpolation: Interpolation method for curved edges (which are built on control points provided in edge-relative coordinates in curved_edges).
+        E.g. the default value is [(.5, .1)] if curved_edges is True and [(.5, 0.)] if False,
+        i.e. is a single control point halfway along the edge, either .1 of its length to the left of it or on it.
+    :param edge_interpolation: Interpolation method for curved edges (which are built on control points provided in edge-relative coordinates in control_points).
         The default interpolation is a cubic spline (i.e. 'basis').
         Interactive examples of possible values: https://altair-viz.github.io/user_guide/marks/line.html
         Corresponding descriptions: https://d3js.org/d3-shape/curve

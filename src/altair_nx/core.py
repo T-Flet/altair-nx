@@ -29,8 +29,7 @@ def to_pandas_edges(G: nx.Graph, pos: dict[..., tuple[float, float]], control_po
     :param G: The graph to draw.
     :param pos: The node positions of G, as produced by any of the `nx.*_layout functions`, e.g. `nx.kamada_kawai_layout`.
         Note that most layouts use random seeds; for reproducible results set `np.random.seed(...)` before they are called.
-    :param control_points: Points to insert in the dataframe between the source and target point rows of each edge;
-        they should be expressed in coordinates relative to their straight edge:
+    :param control_points: Points to insert in the dataframe between the source and target point rows of each edge; they should be expressed as a tuple of coordinates relative to their straight edge:
         (proportion of edge length parallel to the edge, proportion of edge length perpendicular (anticlockwise) to the edge).
         E.g. [(.5, .1)] is a single control point halfway along the edge and .1 of its length to the left of it.
 
@@ -109,11 +108,10 @@ def to_pandas_edge_arrows(G: nx.Graph, pos: dict[..., tuple[float, float]], leng
         Note that most layouts use random seeds; for reproducible results set `np.random.seed(...)` before they are called.
     :param length: A relative (i.e. proportion of edge length) or absolute measure of arrow length (the interpretation is determined by length_is_relative).
     :param length_is_relative: Whether arrow_length should be interpreted as a proportion of its edge length instead of an absolute measure.
-    :param control_points: Points to insert in the dataframe between the source and target point rows of each edge;
-        they should be expressed in coordinates relative to their straight edge:
+    :param control_points: Points to insert in the dataframe between the source and target point rows of each edge; they should be expressed as a tuple of coordinates relative to their straight edge:
         (proportion of edge length parallel to the edge, proportion of edge length perpendicular (anticlockwise) to the edge).
         E.g. [(.5, .1)] is a single control point halfway along the edge and .1 of its length to the left of it.
-    
+
     :return: A pandas DataFrame of edge arrows.
     '''
     assert not (overlap := set(chain.from_iterable(G.edges[n].keys() for n in G.edges)).intersection(avoid := ['edge', 'order', 'source', 'target', 'pair', 'x', 'y'])), f'edges in G should not have attributes named any of {avoid}; overlapping attributes: {overlap}'
