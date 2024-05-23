@@ -265,7 +265,7 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
     chart: alt.Chart = None, layer: alt.Chart = None, subset: list = None,
     size: int | str = 400, shape = 'circle',
     colour = 'teal', cmap: str = None, alpha = 1.,
-    outline_width: float | str = 1., outline_colour: str = None,
+    outline_width: float | str = 1., outline_dash_and_gap_lengths: tuple[float, float] | str = None, outline_colour: str = None,
     tooltip: list[str] = None, legend = False,
     mark_kwargs: dict[str, ...] = None, encode_kwargs: dict[str, ...] = None):
     '''Draw the nodes of graph G using Altair, with control over various features, including filtering, and sizes.
@@ -292,6 +292,7 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
     :param alpha: Node opacity.
 
     :param outline_width: Either a single float for all nodes or a node attribute containing floats.
+    :param outline_dash_and_gap_lengths: None for a continuous outline, or a pair of numbers representing the lengths of dashes and gaps between dashes, or a node attribute containing the same or containing strings.
     :param outline_colour: A colour string, None, or a node attribute containing colour strings if cmap is None and floats if not None.
         Setting it to None makes it match the fill colour.
 
@@ -330,12 +331,7 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
     if isinstance(size, str): encoded_attrs['size'] = alt.Size(size, legend = legend)
     elif isinstance(size, int): marker_attrs['size'] = size
     else: raise TypeError('node_size must be a string or int.')
-    
-    # Width of lines
-    if isinstance(outline_width, str): encoded_attrs['strokeWidth'] = alt.Size(outline_width, legend = legend)
-    elif isinstance(outline_width, (float, int)): marker_attrs['strokeWidth'] = outline_width
-    else: raise TypeError('linewidths must be a string or int.')
-    
+
     # Shape
     if not isinstance(shape, str): raise TypeError('shape must be a string (either an altair point-mark shape or an edge attribute containing the same).')
     elif shape in df_nodes.columns: encoded_attrs['shape'] = alt.Shape(shape, legend = legend)
@@ -346,6 +342,19 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
         if not isinstance(colour, str): raise TypeError('colour must be a string or None for no fill.')
         if colour in df_nodes.columns: encoded_attrs['fill'] = colour
         else: marker_attrs['fill'] = colour
+
+    # Outline width
+    if isinstance(outline_width, str): encoded_attrs['strokeWidth'] = alt.Size(outline_width, legend = legend)
+    elif isinstance(outline_width, (float, int)): marker_attrs['strokeWidth'] = outline_width
+    else: raise TypeError('linewidths must be a string or int.')
+
+    # Outline dashes
+    if outline_dash_and_gap_lengths is not None: # allow no dashes
+        if not (isinstance(outline_dash_and_gap_lengths, str) or (isinstance(outline_dash_and_gap_lengths, tuple) and len(outline_dash_and_gap_lengths) == 2 and isinstance(outline_dash_and_gap_lengths[0], (float, int)) and isinstance(outline_dash_and_gap_lengths[1], (float, int)))):
+            raise TypeError('outline_dash_and_gap_lengths must be None or a pair of numbers representing the lengths of dashes and gaps between dashes or a node attribute containing the same or containing strings.')
+        if outline_dash_and_gap_lengths in df_nodes.columns: encoded_attrs['strokeDash'] = alt.StrokeDash(outline_dash_and_gap_lengths, legend = legend)
+        elif isinstance(outline_dash_and_gap_lengths, str): raise ValueError(f'outline_dash_and_gap_lengths was set to a string (\'{outline_dash_and_gap_lengths}\') not matching any edge attribute; its allowed values are None or a pair of numbers representing the lengths of dashes and gaps between dashes or a node attribute containing the same or containing strings.')
+        else: marker_attrs['strokeDash'] = outline_dash_and_gap_lengths
 
     # Outline colour
     if outline_colour is not None: # match fill colour
@@ -469,7 +478,7 @@ def draw_networkx_labels(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
 def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None, chart: alt.Chart = None,
     node_subset: list = None, edge_subset: list = None, show_orphans = True, show_self_loops = True,
     node_size: int | str = 400, node_shape = 'circle', node_colour = 'teal', node_cmap: str = None, node_alpha = 1.,
-    node_outline_width: float | str = 1., node_outline_colour: str = None,
+    node_outline_width: float | str = 1., node_outline_dash_and_gap_lengths: tuple[float, float] | str = None, node_outline_colour: str = None,
     node_mark_kwargs: dict[str, ...] = None, node_encode_kwargs: dict[str, ...] = None,
     node_label: str = None, node_font_size = 15, node_font_colour = 'black', node_tooltip: list[str] = None, node_legend = False,
     node_label_mark_kwargs: dict[str, ...] = None, node_label_encode_kwargs: dict[str, ...] = None,
@@ -493,7 +502,8 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None
     Also note that there is a pair of `*_kwargs` arguments for each layer to allow customisability without restrictions or safeguards
     by directly injecting fields into the Altair `.mark_*` and `.encode` calls.
     They are mostly meant for deeper levels of interactivity, e.g. adding value toggles by passing `alt.param`s with fixed options bound with `alt.binding_select`,
-    (then requiring `.add_params(...)` on the final chart), but standard fields can also be passed in to override arguments otherwise processed by `draw_networkx`.
+    (then requiring `.add_params(...)` on the final chart), but standard fields can also be passed in to override arguments otherwise processed by `draw_networkx`,
+    e.g. to set conditional values with `alt.condition`.
 
     This function ensures that graph and chart aspect ratios always match by adapting one to the other or vice versa depending on whether one or none of chart_width and chart_height is None.
     For example, if all node coordinates (in pos) were along a thin rectangle, a square chart would not be ideal to draw them; this function will ensure that both are the same shape.
@@ -523,6 +533,7 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None
     :param node_alpha: Node opacity.
 
     :param node_outline_width: Either a single float for all nodes or a node attribute containing floats.
+    :param node_outline_dash_and_gap_lengths: None for a continuous outline, or a pair of numbers representing the lengths of dashes and gaps between dashes, or a node attribute containing the same or containing strings.
     :param node_outline_colour: A colour string, None, or a node attribute containing colour strings if cmap is None and floats if not None.
         Setting it to None makes it match the fill colour.
 
@@ -658,7 +669,7 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None
         nodes = draw_networkx_nodes(G, pos, chart = chart, subset = node_subset,
             size = node_size, shape = node_shape,
             colour = node_colour, cmap = node_cmap, alpha = node_alpha,
-            outline_width = node_outline_width, outline_colour = node_outline_colour,
+            outline_width = node_outline_width, outline_dash_and_gap_lengths = node_outline_dash_and_gap_lengths, outline_colour = node_outline_colour,
             tooltip = node_tooltip, legend = node_legend,
             mark_kwargs = node_mark_kwargs, encode_kwargs = node_encode_kwargs)
         layers.append(nodes)

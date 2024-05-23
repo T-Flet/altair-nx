@@ -34,7 +34,9 @@ The functions are grouped as follows:
 - :py:mod:`altair_nx.core`: functions taking a ``NetworkX Graph`` and returning a ``pandas DataFrame``
   appropriate for drawing a particular type of layer;
   each of these functions is called by a corresponding one in ``altair_nx.draw_altair``.
-
+- :py:mod:`altair_nx.util`: very simple misc functions, including ``copy_size_and_axes``, which considerably simplifies
+  respecting aspect ratios when constructing composite charts with layers of those produced by ``draw_networkx``
+  (an example is in the `tutorial notebook <https://github.com/T-Flet/altair-nx/blob/master/examples/altair-nx-tutorial.ipynb>`_).
 
 
 
