@@ -33,7 +33,11 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
     :param cmap: Colourmap for mapping intensities of edges (requires colour to be an edge attribute containing floats).
     :param alpha: Edge opacity.
 
-    :param tooltip: Edge attributes to show on hover.
+    :param tooltip: Edge attributes to show on hover. By default, the tooltip is only* triggered on an invisible point at the edge midpoint (or slightly off of it if the edge is curved);
+        providing any control_points overrides this default.
+        To set these hoverable points' properties, pass them under the key 'point' through edge_mark_kwargs;
+        the default is equivalent to `mark_kwargs = dict(point = alt.OverlayMarkDef(opacity = 0, size = 400))`.
+        (*: the tooltip is also shown at the base of arrows (with invisible point size of 100, overridable as above) if G is directed and arrow tooltips are not overridden through arrow_encode_kwargs).
     :param legend: Whether to show a legend for attribute-controlled edge features.
     
     :param loop_radius: The radius of self-loop edges.
@@ -132,7 +136,7 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
 
     # ---------- Finalise the fields and construct the visualisation ------------
 
-    marker_attrs['point'] = 'transparent' # to make triggering tooltips easier
+    marker_attrs['point'] = alt.OverlayMarkDef(opacity = 0, size = 400) # to make triggering tooltips easier
     encoded_attrs = dict(x = alt.X('x').axis(None), y = alt.Y('y').axis(None), detail = 'edge', order = 'order', **encoded_attrs)
 
     # Inject custom fields without restrictions or safeguards
@@ -177,7 +181,9 @@ def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
     :param cmap: Colourmap for mapping intensities of arrows (requires colour to be an edge attribute containing floats).
     :param alpha: Edge opacity.
 
-    :param tooltip: Edge attributes to show on hover for arrows.
+    :param tooltip: Edge attributes to show on hover for arrows. (NOTE that draw_networkx passes edge_tooltip to this argument; to set different tooltip attributes from edges, pass them under the key 'tooltip' through arrow_encode_kwargs). The tooltip is only triggered on an invisible point at the base of the arrow;
+        to set this hoverable point's properties, pass them under the key 'point' through mark_kwargs;
+        the default is equivalent to `mark_kwargs = dict(point = alt.OverlayMarkDef(opacity = 0, size = 100))`.
     :param legend: Whether to show a legend for attribute-controlled arrow features.
 
     :param curved_edges: Whether the edges for which arrows are to be drawn are curved.
@@ -247,7 +253,7 @@ def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
 
     # ---------- Finalise the fields and construct the visualisation ------------
 
-    marker_attrs['point'] = 'transparent' # to make triggering tooltips easier
+    marker_attrs['point'] = alt.OverlayMarkDef(opacity = 0, size = 100) # to make triggering tooltips easier; smaller than edges' hover points to avoid overcrowding near nodes
     encoded_attrs = dict(x = alt.X('x').axis(None), y = alt.Y('y').axis(None), detail = 'edge', **encoded_attrs)
 
     # Inject custom fields without restrictions or safeguards
@@ -557,7 +563,11 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None
     :param edge_cmap: Colourmap for mapping intensities of edges (requires edge_colour to be an edge attribute containing floats).
     :param edge_alpha: Edge opacity.
 
-    :param edge_tooltip: Edge attributes to show on hover.
+    :param edge_tooltip: Edge attributes to show on hover (applies to arrows as well). By default, the tooltip is only* triggered on an invisible point at the edge midpoint (or slightly off of it if the edge is curved);
+        providing any edge_control_points overrides this default.
+        To set these hoverable points' properties, pass them under the key 'point' through edge_mark_kwargs;
+        the default is equivalent to `edge_mark_kwargs = dict(point = alt.OverlayMarkDef(opacity = 0, size = 400))`.
+        (*: the tooltip is also shown at the base of arrows (with invisible point size of 100, overridable as above) if G is directed and arrow tooltips are not overridden through arrow_encode_kwargs).
     :param edge_legend: Whether to show a legend for attribute-controlled edge features.
 
     :param loop_radius: The radius of self-loop edges.
