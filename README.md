@@ -38,7 +38,8 @@ Every function argument is explained in the [documentation][rtd-link] (and most 
 but the simplest starting point for altair-nx is playing around with the [tutorial notebook](examples/altair-nx-tutorial.ipynb).
 
 *PS: if you draw something cool or which could be a good example of using combinations of the various features,
-feel free to put it in a notebook and open a pull request with it added to the [examples folder](https://github.com/T-Flet/altair-nx/tree/master/examples>).*
+feel free to put it in a notebook and open a pull request with it added to the [examples folder](https://github.com/T-Flet/altair-nx/tree/master/examples)
+(note that GitHub suppresses interactive charts, therefore copy the png renderer bit at the top of current examples).*
 
 
 
