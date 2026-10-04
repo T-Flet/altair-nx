@@ -1,9 +1,11 @@
+from typing import Any
+
+import altair as alt
 import numpy as np
 import pandas as pd
-import altair as alt
 
 
-def copy_size_and_axes(source_chart: alt.Chart, target_chart: alt.Chart):
+def copy_size_and_axes(source_chart: alt.Chart, target_chart: alt.Chart) -> alt.Chart:
     '''Set the height & width, as well as the x and y axes' ranges of the target_chart to the same values as the source_chart (ASSUMING they are all defined, as is the case for outputs of draw_networkx).
     This is useful to preserve the drawn aspect ratio when reassembling or concatenating layers with other charts.
     '''
@@ -14,16 +16,14 @@ def copy_size_and_axes(source_chart: alt.Chart, target_chart: alt.Chart):
 
 
 
-def is_arraylike(obj):
+def is_arraylike(obj: Any) -> bool:
     '''Return True if array-like (accepts lists, numpy.ndarray, pandas.Series, pandas.DataFrame).
     '''
     return isinstance(obj, (list, np.ndarray, pd.Series, pd.DataFrame))
 
 
 
-def despine(chart: alt.Chart):
+def despine(chart: alt.Chart) -> alt.Chart:
     '''Despine an altair chart (i.e. remove ticks, grid, domain and labels).
     '''
     return chart.configure_axis(ticks = False, grid = False, domain = False, labels = False)
-
-

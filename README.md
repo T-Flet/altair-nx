@@ -126,5 +126,3 @@ Both examples are in the [tutorial notebook](examples/altair-nx-tutorial.ipynb).
 [license-badge]:            https://img.shields.io/pypi/l/altair-nx.svg
 [license-link]:             https://github.com/T-Flet/altair-nx/blob/master/LICENSE
 <!-- prettier-ignore-end -->
-
-

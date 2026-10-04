@@ -5,44 +5,22 @@ description of best practices for developing scientific packages.
 
 # Quick development
 
-The fastest way to start with development is to use nox. If you don't have nox,
-you can use `pipx run nox` to run it without installing, or `pipx install nox`.
-If you don't have pipx (pip for applications), then you can install with
-`pip install pipx` (the only case were installing an application with regular
-pip is reasonable). If you use macOS, then pipx and nox are both in brew, use
-`brew install pipx nox`.
-
-To use, run `nox`. This will lint and test using every installed version of
-Python on your system, skipping ones that are not installed. You can also run
-specific jobs:
+This project is managed with [uv](https://docs.astral.sh/uv/),
+which handles the Python version (see `.python-version`),
+the project environment, and locked dependencies (`uv.lock`).
+To set up a development environment with all dependency groups, run:
 
 ```console
-$ nox -s lint  # Lint only
-$ nox -s tests  # Python tests
-$ nox -s docs -- --serve  # Build and serve the docs
-$ nox -s build  # Make an SDist and wheel
+$ uv sync --all-groups
 ```
 
-Nox handles everything for you, including setting up an temporary virtual
-environment for each run.
+Then run everything through `uv run`, which uses the project environment:
 
-# Setting up a development environment manually
-
-You can set up a development environment by running:
-
-```bash
-python3 -m venv .venv
-source ./.venv/bin/activate
-pip install -v -e .[dev]
-```
-
-If you have the
-[Python Launcher for Unix](https://github.com/brettcannon/python-launcher), you
-can instead do:
-
-```bash
-py -m venv .venv
-py -m install -v -e .[dev]
+```console
+$ uv run pytest # Python tests
+$ uv run pre-commit run --all-files # Lint everything
+$ uv run python -m sphinx -T -b html docs docs/_build/html # Build the docs
+$ uv build # Make an SDist and wheel in dist/
 ```
 
 # Pre-commit
@@ -51,7 +29,7 @@ You should prepare pre-commit, which will help you by checking that commits pass
 required checks:
 
 ```bash
-pip install pre-commit # or brew install pre-commit on macOS
+uv tool install pre-commit # or brew install pre-commit on macOS
 pre-commit install # Will install a pre-commit hook into the git repo
 ```
 
@@ -62,28 +40,28 @@ You can also/alternatively run `pre-commit run` (changes only) or
 
 Use pytest to run the unit checks:
 
-```bash
-pytest
+```console
+$ uv run pytest
 ```
 
 # Coverage
 
 Use pytest-cov to generate coverage reports:
 
-```bash
-pytest --cov=altair-nx
+```console
+$ uv run pytest --cov
 ```
 
 # Building docs
 
 You can build the docs using:
 
-```bash
-nox -s docs
+```console
+$ uv run python -m sphinx -T -b html docs docs/_build/html
 ```
 
 You can see a preview with:
 
-```bash
-nox -s docs -- --serve
+```console
+$ uv run --with sphinx-autobuild sphinx-autobuild docs docs/_build/html --open-browser
 ```

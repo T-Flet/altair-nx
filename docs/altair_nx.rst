@@ -35,5 +35,3 @@ altair\_nx.util module
    :members:
    :undoc-members:
    :show-inheritance:
-
-
