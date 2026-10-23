@@ -39,6 +39,7 @@ dependencies = [
 test = [
   'pytest>=8',
   'pytest-cov>=5',
+  'scipy>=1.14', # the default for stitch_frames' positions (a union-graph kamada_kawai_layout) requires it; kept on the test group since only tests exercise the library's default layout
 ]
 dev = [
   { include-group = 'test' },

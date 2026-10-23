@@ -90,3 +90,23 @@ def despine(chart: alt.Chart) -> alt.Chart:
     '''Despine an altair chart (i.e. remove ticks, grid, domain and labels).
     '''
     return chart.configure_axis(ticks = False, grid = False, domain = False, labels = False)
+
+
+
+def validate_snapshot_schemas(dfs: list[pd.DataFrame], frames: list[Any], entity: str) -> None:
+    '''Ensure that all snapshots' DataFrames of an entity type carry the same attribute columns of the same dtypes (excluding the stitching columns).
+
+    :param dfs: One DataFrame per snapshot for the entity type (snapshots without rows of this entity type are skipped).
+    :param frames: The DataFrames' frame values in playback order (used to report the offending snapshots).
+    :param entity: Name of the entity type (used to report, e.g. 'node').
+    '''
+    if not (snapshots := [(df, frame) for df, frame in zip(dfs, frames, strict = True) if len(df)]): return
+    base, base_frame = snapshots[0]
+    attribute_columns = [c for c in base.columns if c not in ('frame_index', 'frame')]
+    problems = []
+    for df, frame in snapshots[1:]:
+        missing = [c for c in attribute_columns if c not in df.columns]
+        extra = [c for c in df.columns if c not in attribute_columns and c not in ('frame_index', 'frame')]
+        mismatched = {c: (base.dtypes[c], df.dtypes[c]) for c in attribute_columns if c in df.columns and df.dtypes[c] != base.dtypes[c]}
+        if missing or extra or mismatched: problems.append(f'vs frame {base_frame!r} (the first snapshot in playback order): the {entity} attributes are missing {missing}, unexpected {extra}, mismatched dtypes {mismatched}; offending frame: {frame!r}')
+    if problems: raise ValueError('the snapshots must carry identical attribute columns AND dtypes per entity type for stitching; align them across the graphs (add/drop/fill the missing attributes) and stitch again:\n' + '\n'.join(problems))
