@@ -112,6 +112,7 @@ ignore_missing_imports = true
 
 [tool.ruff]
 src = ['src']
+line-length = 200 # defines when isort (I001) wraps import lines, but E501 itself is not selected so long code lines (as common in this repo) stay unflagged
 
 [tool.ruff.lint]
 extend-select = [

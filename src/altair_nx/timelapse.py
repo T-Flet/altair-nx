@@ -3,11 +3,13 @@ from dataclasses import dataclass
 from itertools import chain
 from typing import Any
 
+import altair as alt
 import networkx as nx
 import pandas as pd
 
 from .core import to_pandas_edge_arrows, to_pandas_edges, to_pandas_nodes
-from .util import validate_snapshot_schemas
+from .draw_altair import draw_networkx_arrows, draw_networkx_edges, draw_networkx_labels, draw_networkx_nodes
+from .util import apply_coordinate_affine, assemble_padded_layers, coordinate_affine, validate_snapshot_schemas
 
 
 @dataclass
@@ -121,3 +123,176 @@ def stitch_frames(graphs: Sequence[nx.Graph], positions: dict[Any, tuple[float, 
 
     frames_table = pd.DataFrame({'frame_index': range(len(frames)), 'frame': frames})
     return FrameSet(nodes = nodes, edges = edges, frames = frames_table, arrows = arrows, directed = directed)
+
+
+def draw_networkx_timelapse(frame_set: FrameSet, *,
+    node_subset: list[Any] | None = None, edge_subset: list[Any] | None = None, show_orphans: bool = True, show_self_loops: bool = True,
+    node_size: int | str = 400, node_shape: str = 'circle', node_colour: str = 'teal', node_cmap: str | None = None, node_alpha: float | str | None = None,
+    node_outline_width: float | str = 1., node_outline_dash_and_gap_lengths: tuple[float, float] | str | None = None, node_outline_colour: str | None = None,
+    node_mark_kwargs: dict[str, Any] | None = None, node_encode_kwargs: dict[str, Any] | None = None,
+    node_label: str | None = None, node_font_size: int | str = 15, node_font_colour: str = 'black', node_tooltip: list[str] | None = None, node_legend: bool = False,
+    node_label_mark_kwargs: dict[str, Any] | None = None, node_label_encode_kwargs: dict[str, Any] | None = None,
+    edge_width: int | str = 1, edge_dash_and_gap_lengths: tuple[float, float] | str | None = None, edge_colour: str = 'grey', edge_cmap: str | None = None, edge_alpha: float | str | None = None,
+    edge_tooltip: list[str] | None = None, edge_legend: bool = False,
+    curved_edges: bool = False, edge_interpolation: str = 'basis',
+    edge_mark_kwargs: dict[str, Any] | None = None, edge_encode_kwargs: dict[str, Any] | None = None,
+    arrow_width: int | str = 2, arrow_colour: str = 'black', arrow_cmap: str | None = None, arrow_alpha: float | str | None = None, arrow_legend: bool = False,
+    arrow_mark_kwargs: dict[str, Any] | None = None, arrow_encode_kwargs: dict[str, Any] | None = None,
+    chart_width: float | None = 500., chart_height: float | None = 300., chart_padding: float = .05,
+    frame_label_font_size: int = 15, frame_label_colour: str = 'black', frame_label_position: str = 'below') -> alt.VConcatChart:
+    '''Draw the frames of a FrameSet (as produced by `stitch_frames`) as a single interactive timelapse: a slider selects the position in the sequence and each view shows exactly that position's snapshot.
+
+    The graph at slider position t is laid out over the whole sequence's data (using the union of all frames' node coordinates as the domain, which is why nodes stay put between frames
+    even for growing graphs), while a per-layer snapshot filter (`datum.frame_index == frame`) limits every visual entity to the selected frame.
+    The slider is a Vega-Lite range param named 'frame' declared once on the returned chart, so a single widget drives both the graph and the frame-label strip;
+    users can reference this param by name in their own `*_kwargs` encodings to add further interactivity (e.g. conditional fading of the previous frame).
+
+    Curve GEOMETRY is a stitch-time concern: the edge/arrow/control-point shapes (and arrow lengths) are already baked into the FrameSet's DataFrames at stitch time.
+    This function's curved_edges only controls how that geometry is INTERPOLATED into paths (edge_interpolation); it has no effect on the geometry itself.
+
+    Note that the stitched data holds every frame at once (frames x entities rows) and can therefore exceed Altair's default 5000-row compile cap with large graphs;
+    if so, call `alt.data_transformers.disable_max_rows()` first, or compose the output if fine-grained control is needed (the library does not disable the cap silently).
+
+    Most styling arguments are identical to `draw_networkx`'s same-named arguments (defaults and semantics included) and are not re-documented here;
+    see `draw_networkx` for tooltip/legend behaviour, attribute-driven styling and the `*_kwargs` injections (which name their layers, e.g. node_mark_kwargs).
+    The differences arising from the timelapse flow are: `show_orphans` and the `node_/edge_subsets` act per frame on the stitched rows (a node is an orphan in the frames where it has no edges, not overall),
+    curve/loop/arrow-geometry arguments live on `stitch_frames` instead, and `chart` (draw over a pre-existing chart) is not available.
+
+    :param frame_set: The FrameSet to draw (as produced by `stitch_frames`); its DataFrames are copied, not modified.
+    :param node_subset: Nodes (across all frames) to draw.
+    :param edge_subset: Edges (across all frames, as (source, target) node pairs) to draw.
+    :param show_orphans: Whether to draw, in each frame, that frame's nodes with no edges.
+    :param show_self_loops: Whether to draw edges starting and ending on the same node;
+        nodes with only self-loops will still be drawn (though edge-less in that frame) unless show_orphans is also False.
+
+    :param curved_edges: Whether the baked edge geometry should be interpolated into smooth paths (using edge_interpolation).
+    :param edge_interpolation: Interpolation method for the interpolated edges;
+        see `draw_networkx`'s edge_interpolation for the available values and their geometric behaviour.
+
+    :param chart_width: Same as `draw_networkx`'s chart_width; the aspect-ratio reference range is the union of all frames' node coordinates.
+    :param chart_height: Same as `draw_networkx`'s chart_height.
+    :param chart_padding: Same as `draw_networkx`'s chart_padding.
+
+    :param frame_label_font_size: Size of the stationary, centred frame-label strip's text (the param name followed by the current frame's original value, e.g. 'frame: 2024-01-01').
+    :param frame_label_colour: Colour of the frame-label strip's text.
+    :param frame_label_position: Whether the frame-label strip appears above or below the graph.
+
+    :return: A vertically concatenated Altair chart (alt.VConcatChart): the graph view (whose possible layers, in order, are [edges, arrows, nodes, labels];
+        arrows are present only for directed snapshots and labels only if node_label is not None) and the frame-label strip,
+        ordered by frame_label_position. The graph view's size and axes' domains can be extracted with the same helpers as draw_networkx outputs
+        (e.g. `output.vconcat[index].width` and `output.vconcat[index].encoding.x['scale']['domain']`).
+    '''
+    if node_subset is not None and not isinstance(node_subset, list): raise TypeError('node_subset must be a list or None.')
+    if edge_subset is not None and not isinstance(edge_subset, list): raise TypeError('edge_subset must be a list or None.')
+    if frame_label_position not in ('above', 'below'): raise TypeError('frame_label_position must be \'above\' or \'below\'.')
+
+    df_nodes = frame_set.nodes.copy()
+    df_edges = frame_set.edges.copy()
+    df_arrows = frame_set.arrows.copy() if frame_set.arrows is not None else None
+
+
+    # ---------- Determine the rows to keep (per-frame semantics) ------------
+
+    node_keep = pd.Series(True, index = df_nodes.index)
+    edge_keep = pd.Series(True, index = df_edges.index)
+    if len(df_edges):
+        if not show_self_loops: edge_keep &= df_edges['source'] != df_edges['target'] # False exactly on self-loop rows
+        if edge_subset is not None: edge_keep &= df_edges['pair'].isin(edge_subset)
+    if not show_orphans and len(df_nodes):
+        if len(df_edges):
+            active_edges = df_edges if show_self_loops else df_edges[df_edges['source'] != df_edges['target']]
+            active_endpoints = set(zip(active_edges['frame_index'], active_edges['source'], strict = True)) | set(zip(active_edges['frame_index'], active_edges['target'], strict = True))
+            node_keep = pd.Series(pd.MultiIndex.from_arrays([df_nodes['frame_index'], df_nodes['node']]).isin(active_endpoints), index = df_nodes.index)
+        else: node_keep = pd.Series(False, index = df_nodes.index) # every node is an orphan when the sequence contains no edges
+    if node_subset is not None: node_keep &= df_nodes['node'].isin(node_subset)
+
+    df_nodes = df_nodes[node_keep]
+    df_edges = df_edges[edge_keep]
+    if df_arrows is not None and len(df_arrows):
+        arrow_keep = pd.Series(True, index = df_arrows.index)
+        if edge_subset is not None: arrow_keep &= df_arrows['pair'].isin(edge_subset)
+        df_arrows = df_arrows[arrow_keep]
+
+
+    if not (len(df_nodes) or len(df_edges)): raise ValueError('the FrameSet does not contain any nodes or edges.')
+
+
+    # ---------- Scale all coordinates onto the union of ALL frames' node coordinates (row filtering must not affect the scale) ------------
+
+    x_min, x_max = frame_set.nodes['x'].min(), frame_set.nodes['x'].max()
+    y_min, y_max = frame_set.nodes['y'].min(), frame_set.nodes['y'].max()
+    x_affine, y_affine, chart_width, chart_height = coordinate_affine(chart_width, chart_height, x_min, x_max - x_min, y_min, y_max - y_min)
+
+    df_nodes['x'] = apply_coordinate_affine(df_nodes['x'].tolist(), x_affine)
+    df_nodes['y'] = apply_coordinate_affine(df_nodes['y'].tolist(), y_affine)
+    if len(df_edges):
+        df_edges['x'] = apply_coordinate_affine(df_edges['x'].tolist(), x_affine)
+        df_edges['y'] = apply_coordinate_affine(df_edges['y'].tolist(), y_affine)
+    if df_arrows is not None and len(df_arrows):
+        df_arrows['x'] = apply_coordinate_affine(df_arrows['x'].tolist(), x_affine)
+        df_arrows['y'] = apply_coordinate_affine(df_arrows['y'].tolist(), y_affine)
+
+
+    # ---------- Construct the layers ------------
+
+    layers = []
+
+    # Edges
+    if len(df_edges):
+        edges = draw_networkx_edges(layer = alt.Chart(df_edges),
+            width = edge_width, dash_and_gap_lengths = edge_dash_and_gap_lengths, colour = edge_colour, cmap = edge_cmap, alpha = edge_alpha,
+            tooltip = edge_tooltip, legend = edge_legend,
+            curved_edges = curved_edges, interpolation = edge_interpolation,
+            mark_kwargs = edge_mark_kwargs, encode_kwargs = edge_encode_kwargs)
+        layers.append(edges)
+
+        # Arrows
+        if df_arrows is not None and len(df_arrows):
+            arrows = draw_networkx_arrows(layer = alt.Chart(df_arrows),
+                width = arrow_width, dash_and_gap_lengths = edge_dash_and_gap_lengths,
+                colour = arrow_colour, cmap = arrow_cmap, alpha = arrow_alpha,
+                tooltip = edge_tooltip, legend = arrow_legend,
+                mark_kwargs = arrow_mark_kwargs, encode_kwargs = arrow_encode_kwargs)
+            layers.append(arrows)
+
+    # Nodes
+    if len(df_nodes):
+        nodes = draw_networkx_nodes(layer = alt.Chart(df_nodes),
+            size = node_size, shape = node_shape,
+            colour = node_colour, cmap = node_cmap, alpha = node_alpha,
+            outline_width = node_outline_width, outline_dash_and_gap_lengths = node_outline_dash_and_gap_lengths, outline_colour = node_outline_colour,
+            tooltip = node_tooltip, legend = node_legend,
+            mark_kwargs = node_mark_kwargs, encode_kwargs = node_encode_kwargs)
+        layers.append(nodes)
+
+        # Node labels
+        if node_label:
+            labels = draw_networkx_labels(layer = alt.Chart(df_nodes),
+                label = node_label, font_size = node_font_size, font_colour = node_font_colour,
+                mark_kwargs = node_label_mark_kwargs, encode_kwargs = node_label_encode_kwargs)
+            layers.append(labels)
+
+    if not layers: raise ValueError('the FrameSet does not contain any nodes or edges.')
+
+
+    # ---------- Add the snapshot filters and assemble the layers ------------
+
+    frame_param = alt.param(name = 'frame', value = 0, bind = alt.binding_range(min = 0, max = frame_set.n_frames - 1, step = 1, name = 'frame'))
+    layers = [l.transform_filter('datum.frame_index == frame') for l in layers]
+
+    body = assemble_padded_layers(layers, chart_width, chart_height, chart_padding)
+
+
+    # ---------- Build the frame-label strip ------------
+
+    df_frames = frame_set.frames.copy()
+    df_frames['label'] = 'frame: ' + df_frames['frame'].astype(str)
+    frame_label_chart = alt.Chart(df_frames).mark_text(size = frame_label_font_size, color = frame_label_colour).encode(
+        alt.Text('label', type = 'nominal')
+    ).transform_filter('datum.frame_index == frame').properties(width = chart_width, height = 30)
+
+
+    # ---------- Concatenate the views and attach the slider ------------
+
+    views = (frame_label_chart, body) if frame_label_position == 'above' else (body, frame_label_chart)
+    return alt.vconcat(*views).add_params(frame_param)

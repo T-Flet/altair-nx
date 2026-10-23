@@ -4,6 +4,7 @@ import altair as alt
 import numpy as np
 import pandas as pd
 
+# ---------- General helpers ------------
 
 def resolve_coordinate_scaling(xs: list[float], ys: list[float], chart_width: float | None, chart_height: float | None) -> tuple[list[float], list[float], float, float]:
     '''Scale given coordinate lists to [0, 1] along each axis and stretch the coordinate corresponding to the larger chart dimension, resolving the chart's dimensions along the way.
@@ -30,7 +31,6 @@ def resolve_coordinate_scaling(xs: list[float], ys: list[float], chart_width: fl
     if chart_width != chart_height: # Stretch the coordinate corresponding to the larger chart size so that aspect ratios match (and therefore x and y axes' units are equal)
         xs = [x * chart_width/chart_height for x in xs] if chart_width >= chart_height else xs
         ys = ys if chart_width >= chart_height else [y * chart_height/chart_width for y in ys]
-
     return xs, ys, chart_width, chart_height
 
 
@@ -78,12 +78,10 @@ def copy_size_and_axes(source_chart: alt.Chart, target_chart: alt.Chart) -> alt.
     ).properties(width = source_chart.width, height = source_chart.height)
 
 
-
 def is_arraylike(obj: Any) -> bool:
     '''Return True if array-like (accepts lists, numpy.ndarray, pandas.Series, pandas.DataFrame).
     '''
     return isinstance(obj, (list, np.ndarray, pd.Series, pd.DataFrame))
-
 
 
 def despine(chart: alt.Chart) -> alt.Chart:
@@ -91,6 +89,43 @@ def despine(chart: alt.Chart) -> alt.Chart:
     '''
     return chart.configure_axis(ticks = False, grid = False, domain = False, labels = False)
 
+
+# ---------- Timelapse helpers ------------
+
+def coordinate_affine(chart_width: float | None, chart_height: float | None, x_min: float, x_range: float, y_min: float, y_range: float) -> tuple[tuple[float, float, float], tuple[float, float, float], float, float]:
+    '''Derive the affine transforms that resolve_coordinate_scaling would apply to coordinates spanning the given ranges, along with the resolved chart dimensions.
+
+    :param chart_width: Width to set the chart to (while maintaining equality between the drawn axes' units); must not be None together with chart_height.
+    :param chart_height: Height to set the chart to (while maintaining equality between the drawn axes' units); must not be None together with chart_width.
+    :param x_min: The smallest x coordinate of the drawing's coordinate domain (e.g. the union of all frames' node coordinates).
+    :param x_range: The x coordinates' span (max - min).
+    :param y_min: The smallest y coordinate of the drawing's coordinate domain.
+    :param y_range: The y coordinates' span (max - min).
+
+    :return: A pair of (minimum, range, stretch) triples for the x and y coordinates (to be applied with apply_coordinate_affine,
+        reproducing resolve_coordinate_scaling's transform exactly), and the resolved chart_width and chart_height.
+    '''
+    if chart_width is None and chart_height is None:
+        raise ValueError('chart_width and chart_height cannot both be None; if one is None then the other is determined by the coordinates\' own aspect ratio.')
+
+    if chart_width is None: chart_width = cast(float, chart_height) * x_range / y_range # the cast is for mypy clarity
+    if chart_height is None: chart_height = chart_width * y_range / x_range
+    x_stretch = chart_width / chart_height if chart_width >= chart_height else 1.
+    y_stretch = 1. if chart_width >= chart_height else chart_height / chart_width
+
+    return (x_min, x_range, x_stretch), (y_min, y_range, y_stretch), chart_width, chart_height
+
+
+def apply_coordinate_affine(values: list[float], affine: tuple[float, float, float]) -> list[float]:
+    '''Apply a (minimum, range, stretch) affine triple produced by coordinate_affine to coordinate values.
+
+    :param values: The values to transform (e.g. a DataFrame column's tolist()).
+    :param affine: The affine triple to apply.
+
+    :return: The transformed values (all zeros if the affine's range is zero).
+    '''
+    offset, divisor, multiplier = affine
+    return [0. if divisor == 0 else (value - offset) / divisor * multiplier for value in values]
 
 
 def validate_snapshot_schemas(dfs: list[pd.DataFrame], frames: list[Any], entity: str) -> None:
