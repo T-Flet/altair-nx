@@ -5,6 +5,7 @@ import altair as alt
 import networkx as nx
 
 from .core import to_pandas_edge_arrows, to_pandas_edges, to_pandas_nodes
+from .util import assemble_padded_layers, resolve_coordinate_scaling
 
 
 def draw_networkx_edges(G: nx.Graph = None, pos: dict[Any, tuple[float, float]] | None = None,
@@ -644,17 +645,8 @@ def draw_networkx(G: nx.Graph = None, pos: dict[Any, tuple[float, float]] | None
 
     # ---------- Scale the coordinates ------------
 
-    if chart_width is None and chart_height is None: raise ValueError('chart_width and chart_height cannot both be None; if one is None then the other is determined by the graph\'s own aspect ratio.')
-
-    pos_xs, pos_ys = zip(*pos.values(), strict = True)
-    x_range, y_range = max(pos_xs) - min(pos_xs), max(pos_ys) - min(pos_ys)
-    if chart_width is None: chart_width = chart_height * x_range / y_range
-    if chart_height is None: chart_height = chart_width * y_range / x_range
-
-    # Scale x and y to [0,1] (so that loop_radius values are consistent across charts)
-    pos = {n: (0. if x_range == 0 else (xy[0] - min(pos_xs)) / x_range, 0. if y_range == 0 else (xy[1] - min(pos_ys)) / y_range) for n, xy in pos.items()}
-    if chart_width != chart_height: # Stretch the coordinate corresponding to the larger chart size so that aspect ratios match (and therefore x and y axes' units are equal)
-        pos = {n: (xy[0] * chart_width/chart_height, xy[1]) if chart_width >= chart_height else (xy[0], xy[1] * chart_height/chart_width) for n, xy in pos.items()}
+    xs, ys, chart_width, chart_height = resolve_coordinate_scaling([xy[0] for xy in pos.values()], [xy[1] for xy in pos.values()], chart_width, chart_height)
+    pos = dict(zip(pos, zip(xs, ys, strict = True), strict = True))
 
 
     # ---------- Construct the layers ------------
@@ -701,26 +693,5 @@ def draw_networkx(G: nx.Graph = None, pos: dict[Any, tuple[float, float]] | None
 
     # ---------- Assemble the layers and make padded axes match the aspect ratio ------------
 
-    if layers:
-        # Extract the coordinate ranges from the layers which are present (since drawn elements, e.g. self-loops or large node sizes, might not match node coordinate ranges)
-        min_xs, max_xs, min_ys, max_ys = zip(*((min(l.data['x']), max(l.data['x']), min(l.data['y']), max(l.data['y'])) for l in layers), strict = True)
-        x_range = (max_x := max(max_xs)) - (min_x := min(min_xs))
-        y_range = (max_y := max(max_ys)) - (min_y := min(min_ys))
-
-        # Compute new coordinate ranges with uniform padding AND s.t. the aspect ratio matches the required one
-        #   It is cleaner to work in terms of longer and shorter sides rather than real x and y; reassign at the end
-        long_axis, short_axis, long_side, short_side = (x_range, y_range, chart_width, chart_height) if chart_width >= chart_height else (y_range, x_range, chart_height, chart_width)
-        long_padding = short_padding = chart_padding * max(x_range, y_range) # use the larger of the two as uniform padding
-
-        # Impose the chart's aspect ratio onto the axes by increasing the length of one of the two (i.e. avoid going below the stated padding; only above)
-        if (raw_long := long_axis + 2 * long_padding) / (raw_short := short_axis + 2 * short_padding) >= long_side / short_side:
-            short_padding = ((raw_long * short_side / long_side) - short_axis) / 2 # i.e. (correct-aspect-ratio raw_short - short_axis) / 2
-        else: long_padding = ((raw_short * long_side / short_side) - long_axis) / 2 # i.e. (correct-aspect-ratio raw_long - long_axis) / 2
-
-        x_padding, y_padding = (long_padding, short_padding) if chart_width >= chart_height else (short_padding, long_padding)
-
-        return alt.layer(*layers).encode(
-            alt.X().scale(domain = (min_x - x_padding, max_x + x_padding)),
-            alt.Y().scale(domain = (min_y - y_padding, max_y + y_padding))
-        ).properties(width = chart_width, height = chart_height)
+    if layers: return assemble_padded_layers(layers, chart_width, chart_height, chart_padding)
     else: raise ValueError('G does not contain any nodes or edges.')

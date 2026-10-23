@@ -1,8 +1,71 @@
-from typing import Any
+from typing import Any, cast
 
 import altair as alt
 import numpy as np
 import pandas as pd
+
+
+def resolve_coordinate_scaling(xs: list[float], ys: list[float], chart_width: float | None, chart_height: float | None) -> tuple[list[float], list[float], float, float]:
+    '''Scale given coordinate lists to [0, 1] along each axis and stretch the coordinate corresponding to the larger chart dimension, resolving the chart's dimensions along the way.
+
+    :param xs: The x coordinates to scale (also produce the width if chart_width is None).
+    :param ys: The y coordinates to scale (also produce the height if chart_height is None).
+    :param chart_width: Width to set the chart to (while maintaining equality between the drawn axes' units); must not be None together with chart_height.
+    :param chart_height: Height to set the chart to (while maintaining equality between the drawn axes' units); must not be None together with chart_width.
+
+    :return: The scaled xs and ys, and the resolved chart_width and chart_height
+        (so that the graph\'s aspect ratio matches; the shorter axis will have length of approximately 1 + 2 * chart_padding).
+    '''
+    if chart_width is None and chart_height is None:
+        raise ValueError('chart_width and chart_height cannot both be None; if one is None then the other is determined by the graph\'s own aspect ratio.')
+
+    old_xs, old_ys = xs, ys
+    x_range, y_range = max(xs) - min(xs), max(ys) - min(ys)
+    if chart_width is None: chart_width = cast(float, chart_height) * x_range / y_range # the cast is for mypy clarity
+    if chart_height is None: chart_height = chart_width * y_range / x_range
+
+    # Scale x and y to [0,1] (so that loop_radius values are consistent across charts)
+    xs = [0. if x_range == 0 else (x - min(old_xs)) / x_range for x in xs]
+    ys = [0. if y_range == 0 else (y - min(old_ys)) / y_range for y in ys]
+    if chart_width != chart_height: # Stretch the coordinate corresponding to the larger chart size so that aspect ratios match (and therefore x and y axes' units are equal)
+        xs = [x * chart_width/chart_height for x in xs] if chart_width >= chart_height else xs
+        ys = ys if chart_width >= chart_height else [y * chart_height/chart_width for y in ys]
+
+    return xs, ys, chart_width, chart_height
+
+
+def assemble_padded_layers(layers: list[alt.Chart], chart_width: float, chart_height: float, chart_padding: float) -> alt.LayerChart:
+    '''Assemble the given layers into a single chart whose axes match the given chart\'s aspect ratio after padding.
+
+    :param layers: The layers to assemble (non-empty; their dataframes must have 'x' and 'y' columns).
+    :param chart_width: Width to set the chart to (while maintaining equality between the drawn axes' units).
+    :param chart_height: Height to set the chart to (while maintaining equality between the drawn axes' units).
+    :param chart_padding: Proportion of the larger of the two axes to use as padding between graph and chart borders
+        (followed by a slight padding increase due to final aspect ratio adjustments).
+
+    :return: A single-chart layer of the given layers, with both axes\' domains covering the drawn elements with the given proportion of asymmetric-but-uniform padding.
+    '''
+    # Extract the coordinate ranges from the layers which are present (since drawn elements, e.g. self-loops or large node sizes, might not match node coordinate ranges)
+    min_xs, max_xs, min_ys, max_ys = zip(*((min(l.data['x']), max(l.data['x']), min(l.data['y']), max(l.data['y'])) for l in layers), strict = True)
+    x_range = (max_x := max(max_xs)) - (min_x := min(min_xs))
+    y_range = (max_y := max(max_ys)) - (min_y := min(min_ys))
+
+    # Compute new coordinate ranges with uniform padding AND s.t. the aspect ratio matches the required one
+    #   It is cleaner to work in terms of longer and shorter sides rather than real x and y; reassign at the end
+    long_axis, short_axis, long_side, short_side = (x_range, y_range, chart_width, chart_height) if chart_width >= chart_height else (y_range, x_range, chart_height, chart_width)
+    long_padding = short_padding = chart_padding * max(x_range, y_range) # use the larger of the two as uniform padding
+
+    # Impose the chart's aspect ratio onto the axes by increasing the length of one of the two (i.e. avoid going below the stated padding; only above)
+    if (raw_long := long_axis + 2 * long_padding) / (raw_short := short_axis + 2 * short_padding) >= long_side / short_side:
+        short_padding = ((raw_long * short_side / long_side) - short_axis) / 2 # i.e. (correct-aspect-ratio raw_short - short_axis) / 2
+    else: long_padding = ((raw_short * long_side / short_side) - long_axis) / 2 # i.e. (correct-aspect-ratio raw_long - long_axis) / 2
+
+    x_padding, y_padding = (long_padding, short_padding) if chart_width >= chart_height else (short_padding, long_padding)
+
+    return alt.layer(*layers).encode(
+        alt.X().scale(domain = (min_x - x_padding, max_x + x_padding)),
+        alt.Y().scale(domain = (min_y - y_padding, max_y + y_padding))
+    ).properties(width = chart_width, height = chart_height)
 
 
 def copy_size_and_axes(source_chart: alt.Chart, target_chart: alt.Chart) -> alt.Chart:
