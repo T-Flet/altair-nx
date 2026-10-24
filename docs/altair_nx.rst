@@ -28,6 +28,14 @@ altair\_nx.draw_altair module
    :undoc-members:
    :show-inheritance:
 
+altair\_nx.timelapse module
+---------------------------
+
+.. automodule:: altair_nx.timelapse
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 altair\_nx.util module
 -----------------------------
 

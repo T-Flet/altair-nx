@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any, cast
+
 import networkx as nx
 import pytest
 from pandas import Timestamp
@@ -248,6 +250,6 @@ def test_draw_timelapse_raises_on_empty_frameset_and_bad_arguments():
 
     frameset = stitch_frames([nx.path_graph(2)], positions = {0: (0., 0.), 1: (1., 0.)})
     with pytest.raises(TypeError, match = 'node_subset'):
-        draw_networkx_timelapse(frameset, node_subset = 'x')
+        draw_networkx_timelapse(frameset, node_subset = cast(list[Any], 'x'))
     with pytest.raises(TypeError, match = 'edge_subset'):
-        draw_networkx_timelapse(frameset, edge_subset = 'e')
+        draw_networkx_timelapse(frameset, edge_subset = cast(list[Any], 'e'))
