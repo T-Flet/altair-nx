@@ -139,13 +139,13 @@ def draw_networkx_timelapse(frame_set: FrameSet, *,
     arrow_width: int | str = 2, arrow_colour: str = 'black', arrow_cmap: str | None = None, arrow_alpha: float | str | None = None, arrow_legend: bool = False,
     arrow_mark_kwargs: dict[str, Any] | None = None, arrow_encode_kwargs: dict[str, Any] | None = None,
     chart_width: float | None = 500., chart_height: float | None = 300., chart_padding: float = .05,
-    frame_label_font_size: int = 15, frame_label_colour: str = 'black', frame_label_position: str = 'below') -> alt.VConcatChart:
+    frame_label_font_size: int = 15, frame_label_colour: str = 'black', frame_label_position: str = 'below', frame_param_name: str = 'frame') -> alt.VConcatChart:
     '''Draw the frames of a FrameSet (as produced by `stitch_frames`) as a single interactive timelapse: a slider selects the position in the sequence and each view shows exactly that position's snapshot.
 
     The graph at slider position t is laid out over the whole sequence's data (using the union of all frames' node coordinates as the domain, which is why nodes stay put between frames
     even for growing graphs), while a per-layer snapshot filter (`datum.frame_index == frame`) limits every visual entity to the selected frame.
-    The slider is a Vega-Lite range param named 'frame' declared once on the returned chart, so a single widget drives both the graph and the frame-label strip;
-    users can reference this param by name in their own `*_kwargs` encodings to add further interactivity (e.g. conditional fading of the previous frame).
+    The slider is a Vega-Lite range param (named by frame_param_name, 'frame' by default) declared once on the returned chart, so a single widget drives both the graph and the frame-label strip;
+    users can reference this param by that name in their own `*_kwargs` encodings to add further interactivity (e.g. conditional fading of the previous frame).
 
     Curve GEOMETRY is a stitch-time concern: the edge/arrow/control-point shapes (and arrow lengths) are already baked into the FrameSet's DataFrames at stitch time.
     This function's curved_edges only controls how that geometry is INTERPOLATED into paths (edge_interpolation); it has no effect on the geometry itself.
@@ -173,9 +173,11 @@ def draw_networkx_timelapse(frame_set: FrameSet, *,
     :param chart_height: Same as `draw_networkx`'s chart_height.
     :param chart_padding: Same as `draw_networkx`'s chart_padding.
 
-    :param frame_label_font_size: Size of the stationary, centred frame-label strip's text (the param name followed by the current frame's original value, e.g. 'frame: 2024-01-01').
+    :param frame_label_font_size: Size of the stationary, centred frame-label strip's text (the param name followed by the current frame's original value, e.g. 'time: 2024-01-01').
     :param frame_label_colour: Colour of the frame-label strip's text.
     :param frame_label_position: Whether the frame-label strip appears above or below the graph.
+    :param frame_param_name: Name of the Vega-Lite range param that drives the slider, also used as the displayed label next to it and the prefix in the frame-label strip;
+        change it to rename that word (e.g. 'frame' to 'time') and to reference the param from your own `*_kwargs` encodings under the new name.
 
     :return: A vertically concatenated Altair chart (alt.VConcatChart): the graph view (whose possible layers, in order, are [edges, arrows, nodes, labels];
         arrows are present only for directed snapshots and labels only if node_label is not None) and the frame-label strip,
@@ -185,6 +187,7 @@ def draw_networkx_timelapse(frame_set: FrameSet, *,
     if node_subset is not None and not isinstance(node_subset, list): raise TypeError('node_subset must be a list or None.')
     if edge_subset is not None and not isinstance(edge_subset, list): raise TypeError('edge_subset must be a list or None.')
     if frame_label_position not in ('above', 'below'): raise TypeError('frame_label_position must be \'above\' or \'below\'.')
+    if not frame_param_name.isidentifier(): raise ValueError('frame_param_name must be a valid identifier (it names the slider param, which is referenced inside the chart\'s filtering expressions).')
 
     df_nodes = frame_set.nodes.copy()
     df_edges = frame_set.edges.copy()
@@ -277,8 +280,8 @@ def draw_networkx_timelapse(frame_set: FrameSet, *,
 
     # ---------- Add the snapshot filters and assemble the layers ------------
 
-    frame_param = alt.param(name = 'frame', value = 0, bind = alt.binding_range(min = 0, max = frame_set.n_frames - 1, step = 1, name = 'frame'))
-    layers = [l.transform_filter('datum.frame_index == frame') for l in layers]
+    frame_param = alt.param(name = frame_param_name, value = 0, bind = alt.binding_range(min = 0, max = frame_set.n_frames - 1, step = 1, name = frame_param_name))
+    layers = [l.transform_filter(f'datum.frame_index == {frame_param_name}') for l in layers]
 
     body = assemble_padded_layers(layers, chart_width, chart_height, chart_padding)
 
@@ -286,10 +289,10 @@ def draw_networkx_timelapse(frame_set: FrameSet, *,
     # ---------- Build the frame-label strip ------------
 
     df_frames = frame_set.frames.copy()
-    df_frames['label'] = 'frame: ' + df_frames['frame'].astype(str)
+    df_frames['label'] = frame_param_name + ': ' + df_frames['frame'].astype(str)
     frame_label_chart = alt.Chart(df_frames).mark_text(size = frame_label_font_size, color = frame_label_colour).encode(
         alt.Text('label', type = 'nominal')
-    ).transform_filter('datum.frame_index == frame').properties(width = chart_width, height = 30)
+    ).transform_filter(f'datum.frame_index == {frame_param_name}').properties(width = chart_width, height = 30)
 
 
     # ---------- Concatenate the views and attach the slider ------------

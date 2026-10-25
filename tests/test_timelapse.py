@@ -181,22 +181,37 @@ def test_draw_timelapse_label_strip_position_toggle_and_nominal_int_frames():
         draw_networkx_timelapse(frameset, frame_label_position = 'side')
 
 
+def test_draw_timelapse_slider_param_name_is_configurable():
+    pos = {0: (0., 0.), 1: (1., 0.), 2: (2., 0.)}
+    frameset = stitch_frames([nx.path_graph(3), nx.path_graph(2)], positions = pos)
+
+    spec = draw_networkx_timelapse(frameset, frame_param_name = 'time').to_dict()
+    assert spec['params'][0]['name'] == 'time'
+    assert spec['params'][0]['bind']['name'] == 'time' # the word displayed next to the slider
+    layers = spec['vconcat'][0]['layer']
+    assert all(l['transform'] == [{'filter': 'datum.frame_index == time'}] for l in layers)
+    assert spec['vconcat'][1]['transform'] == [{'filter': 'datum.frame_index == time'}]
+
+    with pytest.raises(ValueError, match = 'identifier'):
+        draw_networkx_timelapse(frameset, frame_param_name = 'time step')
+
+
 @pytest.mark.parametrize('frames, expected', [
-    ([0, 1], ['frame: 0', 'frame: 1']),
-    (['first', 'second'], ['frame: first', 'frame: second']),
-    ([Timestamp('2024-01-01'), Timestamp('2024-02-01')], ['frame: 2024-01-01', 'frame: 2024-02-01']),
-    ([Timestamp('2024-01-01 12:30:00')], ['frame: 2024-01-01 12:30:00']),
+    ([0, 1], ['time: 0', 'time: 1']),
+    (['first', 'second'], ['time: first', 'time: second']),
+    ([Timestamp('2024-01-01'), Timestamp('2024-02-01')], ['time: 2024-01-01', 'time: 2024-02-01']),
+    ([Timestamp('2024-01-01 12:30:00')], ['time: 2024-01-01 12:30:00']),
 ])
 def test_draw_timelapse_stationary_named_labels(frames, expected):
     frameset = stitch_frames([nx.path_graph(2) for _ in frames], positions = {0: (0., 0.), 1: (1., 0.)}, frames = frames)
     original_frames = frameset.frames.copy()
-    viz = draw_networkx_timelapse(frameset, frame_label_position = 'above', frame_label_font_size = 18, frame_label_colour = 'purple')
+    viz = draw_networkx_timelapse(frameset, frame_param_name = 'time', frame_label_position = 'above', frame_label_font_size = 18, frame_label_colour = 'purple')
 
     strip = viz.to_dict()['vconcat'][0]
     assert strip['encoding'] == {'text': {'field': 'label', 'type': 'nominal'}}
     assert strip['mark'] == {'type': 'text', 'size': 18, 'color': 'purple'}
     assert strip['width'] == 500. and strip['height'] == 30
-    assert strip['transform'] == [{'filter': 'datum.frame_index == frame'}]
+    assert strip['transform'] == [{'filter': 'datum.frame_index == time'}]
     assert list(viz.vconcat[0].data['label']) == expected
     assert list(viz.vconcat[0].data.columns) == ['frame_index', 'frame', 'label']
     assert frameset.frames.equals(original_frames)
