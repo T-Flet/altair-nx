@@ -58,9 +58,9 @@ def stitch_frames(graphs: Sequence[nx.Graph], positions: dict[Any, tuple[float, 
     :param positions: Either
         - None (default): one layout for all frames, computed from the UNION of all snapshots' nodes and edges (a `nx.kamada_kawai_layout`, which requires scipy), so nodes stay static throughout the sequence instead of jumping between randomly-seeded per-frame layouts;
         - a single pos dict (as produced by the `nx.*_layout` functions): used for all frames;
-        - a sequence of pos dicts (one per graph): per-frame positions, which is the way to make nodes move.
+        - a sequence of pos dicts (one per graph, in the same input order as graphs): per-frame positions, which is the way to make nodes move.
           TIP: to obtain smooth motion, lay each frame out starting from the previous frame's positions, e.g. `pos_next = nx.spring_layout(G_next, pos = pos_prev)`.
-          Either way, all pos dicts must cover all the nodes ever appearing in the sequence; coherent motion and recognisability are the user's responsibility.
+          Each pos dict must cover the nodes in its corresponding snapshot; a shared dict must cover all nodes in the sequence. Coherent motion and recognisability are the user's responsibility.
           Note: editing the returned DataFrames' 'x'/'y' columns is unsafe, since edge/arrow geometry is baked at stitch time from node coordinates.
     :param frames: One frame value per snapshot (unique and mutually orderable; defaults to a sequence of ints 0..n-1).
         Snapshots are stitched in playback order, a stable sort by their frame values, NOT necessarily in the order given.
@@ -96,6 +96,7 @@ def stitch_frames(graphs: Sequence[nx.Graph], positions: dict[Any, tuple[float, 
     else:
         all_pos = list(positions)
         assert len(all_pos) == len(graphs) and all(isinstance(p, dict) for p in all_pos), 'positions must be None, a pos dict shared by all frames, or one pos dict per graph snapshot.'
+        all_pos = [all_pos[i] for i in order]
 
     df_nodes: list[pd.DataFrame] = []
     df_edges: list[pd.DataFrame] = []

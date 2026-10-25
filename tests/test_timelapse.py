@@ -79,6 +79,30 @@ def test_stitch_single_positions_dict_is_shared_by_all_frames():
     assert frameset.nodes.groupby('node')[['x', 'y']].nunique().max().max() == 1 # every node gets one shared position across all its frames
 
 
+@pytest.mark.parametrize('directed', [False, True])
+@pytest.mark.parametrize('frames', [[30, 10, 20], [Timestamp('2026-03-01'), Timestamp('2026-01-01'), Timestamp('2026-02-01')]])
+def test_stitch_keeps_per_frame_positions_aligned_when_sorting(directed, frames):
+    graphs = [nx.path_graph(3, create_using = nx.DiGraph if directed else nx.Graph) for _ in frames]
+    positions = [{n: (float(n + 10 * i), float(n * n + 10 * i)) for n in graph.nodes} for i, graph in enumerate(graphs)]
+    for i, graph in enumerate(graphs):
+        graph.add_edge(1, 1)
+        nx.set_node_attributes(graph, i, 'snapshot')
+        nx.set_edge_attributes(graph, i, 'snapshot')
+    frameset = stitch_frames(graphs, positions = positions, frames = frames, control_points = [(.5, .2)])
+
+    assert list(frameset.frames['frame']) == sorted(frames)
+    for graph, pos, frame in zip(graphs, positions, frames, strict = True):
+        expected = stitch_frames([graph], positions = pos, control_points = [(.5, .2)])
+        for entity in ('nodes', 'edges', 'arrows'):
+            actual_rows, expected_rows = getattr(frameset, entity), getattr(expected, entity)
+            if actual_rows is None:
+                assert expected_rows is None
+                continue
+            actual_rows = actual_rows.loc[actual_rows['frame'] == frame].drop(columns = ['frame', 'frame_index', 'edge'], errors = 'ignore').reset_index(drop = True)
+            expected_rows = expected_rows.drop(columns = ['frame', 'frame_index', 'edge'], errors = 'ignore').reset_index(drop = True)
+            assert actual_rows.equals(expected_rows)
+
+
 def test_stitch_default_union_layout_is_static_without_positions():
     graphs = [nx.path_graph(3), nx.path_graph(2)]
     frameset = stitch_frames(graphs) # positions defaults to one kamada_kawai layout over the union of the snapshots (requires scipy)
