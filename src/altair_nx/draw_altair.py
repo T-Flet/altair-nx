@@ -1,18 +1,20 @@
+from copy import deepcopy
+from typing import Any
+
 import altair as alt
 import networkx as nx
 
-from copy import deepcopy
+from .core import to_pandas_edge_arrows, to_pandas_edges, to_pandas_nodes
+from .util import assemble_padded_layers, resolve_coordinate_scaling
 
-from .core import to_pandas_edges, to_pandas_edge_arrows, to_pandas_nodes
 
-
-def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None,
-    chart: alt.Chart = None, layer: alt.Chart = None, subset: list = None,
-    width = 1, dash_and_gap_lengths: tuple[float, float] | str = None, colour = 'grey', cmap: str = None, alpha = 1.,
-    tooltip: list[str] = None, legend = False,
-    loop_radius = .05, loop_angle = 90., loop_n_points = 30,
-    curved_edges = False, control_points: list[tuple[float, float]] = None, interpolation = 'basis',
-    mark_kwargs: dict[str, ...] = None, encode_kwargs: dict[str, ...] = None):
+def draw_networkx_edges(G: nx.Graph = None, pos: dict[Any, tuple[float, float]] | None = None,
+    chart: alt.Chart = None, layer: alt.Chart = None, subset: list[Any] | None = None,
+    width: int | str = 1, dash_and_gap_lengths: tuple[float, float] | str | None = None, colour: str = 'grey', cmap: str | None = None, alpha: float | str | None = None,
+    tooltip: list[str] | None = None, legend: bool = False,
+    loop_radius: float = .05, loop_angle: float = 90., loop_n_points: int = 30,
+    curved_edges: bool = False, control_points: list[tuple[float, float]] | None = None, interpolation: str = 'basis',
+    mark_kwargs: dict[str, Any] | None = None, encode_kwargs: dict[str, Any] | None = None) -> alt.Chart:
     '''Draw the edges of graph G using Altair, with control over various features, including filtering and curve.
 
     Note that for arguments which accept edge attributes as alternatives to fixed values there are additional options generated in the drawing process:
@@ -39,7 +41,7 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
         the default is equivalent to `mark_kwargs = dict(point = alt.OverlayMarkDef(opacity = 0, size = 400))`.
         (*: the tooltip is also shown at the base of arrows (with invisible point size of 100, overridable as above) if G is directed and arrow tooltips are not overridden through arrow_encode_kwargs).
     :param legend: Whether to show a legend for attribute-controlled edge features.
-    
+
     :param loop_radius: The radius of self-loop edges.
         Note that using too small a value may result in the nodes covering self-loops completely (interactive zoom may also cause this).
         Also note that changing the chart's aspect ratio outside of this function (with `.properties(width = ..., height = ...)`)
@@ -86,8 +88,9 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
         edge_chart = alt.Chart(df_edges)
     else: raise ValueError('one of G, chart or layer is required to draw.')
 
-    marker_attrs, encoded_attrs = {}, {}
-    legend = {} if legend else None
+    marker_attrs: dict[str, Any] = {}
+    encoded_attrs: dict[str, Any] = {}
+    legend_spec: dict[str, Any] | None = {} if legend else None
 
 
     # ---------- Handle the arguments ------------
@@ -98,7 +101,7 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
     elif subset is not None: raise TypeError('subset must be a list or None.')
 
     # Width
-    if isinstance(width, str): encoded_attrs['strokeWidth'] = alt.Size(width, legend = legend)
+    if isinstance(width, str): encoded_attrs['strokeWidth'] = alt.Size(width, legend = legend_spec)
     elif isinstance(width, (float, int)): marker_attrs['strokeWidth'] = width
     else: raise TypeError('width must be a string or int.')
 
@@ -106,17 +109,17 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
     if dash_and_gap_lengths is not None: # allow no dashes
         if not (isinstance(dash_and_gap_lengths, str) or (isinstance(dash_and_gap_lengths, tuple) and len(dash_and_gap_lengths) == 2 and isinstance(dash_and_gap_lengths[0], (float, int)) and isinstance(dash_and_gap_lengths[1], (float, int)))):
             raise TypeError('dash_and_gap_lengths must be None or a pair of numbers representing the lengths of dashes and gaps between dashes or an edge attribute containing the same or containing strings.')
-        if dash_and_gap_lengths in df_edges.columns: encoded_attrs['strokeDash'] = alt.StrokeDash(dash_and_gap_lengths, legend = legend)
+        if dash_and_gap_lengths in df_edges.columns: encoded_attrs['strokeDash'] = alt.StrokeDash(dash_and_gap_lengths, legend = legend_spec)
         elif isinstance(dash_and_gap_lengths, str): raise ValueError(f'dash_and_gap_lengths was set to a string (\'{dash_and_gap_lengths}\') not matching any edge attribute; its allowed values are None or a pair of numbers representing the lengths of dashes and gaps between dashes or an edge attribute containing the same or containing strings.')
         else: marker_attrs['strokeDash'] = dash_and_gap_lengths
 
     # Colour
     if not isinstance(colour, str): raise TypeError('colour must be a string (either a colour or an edge attribute containing colour strings or floats for a colour map).')
-    elif colour in df_edges.columns:
-        if cmap is None: encoded_attrs['color'] = alt.Color(colour, legend = legend)
+    if colour in df_edges.columns:
+        if cmap is None: encoded_attrs['color'] = alt.Color(colour, legend = legend_spec)
         elif isinstance(cmap, str):
             if df_edges.dtypes[colour] == 'O': raise TypeError(f'the edge attribute ({colour}) to use with cmap {cmap} is non-numeric.')
-            else: encoded_attrs['color'] = alt.Color(colour, scale = alt.Scale(scheme = cmap), legend = legend)
+            encoded_attrs['color'] = alt.Color(colour, scale = alt.Scale(scheme = cmap), legend = legend_spec)
         else: raise TypeError('cmap must be a string (colourmap name) or None.')
     else: marker_attrs['color'] = colour
 
@@ -129,7 +132,7 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
     if curved_edges:
         if isinstance(interpolation, str): marker_attrs['interpolate'] = interpolation
         else: raise TypeError('interpolate must be a string.')
-    
+
     # Tooltip
     if tooltip is not None: encoded_attrs['tooltip'] = tooltip
 
@@ -151,15 +154,15 @@ def draw_networkx_edges(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
 
 
 
-def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None,
-    chart: alt.Chart = None, layer: alt.Chart = None, subset: list = None,
-    width = 1, dash_and_gap_lengths: tuple[float, float] | str = None, length = .1, length_is_relative = True,
-    colour = 'grey', cmap: str = None, alpha = 1.,
-    tooltip: list[str] = None, legend = False,
-    curved_edges = False, control_points: list[tuple[float, float]] = None,
-    mark_kwargs: dict[str, ...] = None, encode_kwargs: dict[str, ...] = None):
+def draw_networkx_arrows(G: nx.Graph = None, pos: dict[Any, tuple[float, float]] | None = None,
+    chart: alt.Chart = None, layer: alt.Chart = None, subset: list[Any] | None = None,
+    width: int | str = 1, dash_and_gap_lengths: tuple[float, float] | str | None = None, length: float = .1, length_is_relative: bool = True,
+    colour: str = 'grey', cmap: str | None = None, alpha: float | str | None = None,
+    tooltip: list[str] | None = None, legend: bool = False,
+    curved_edges: bool = False, control_points: list[tuple[float, float]] | None = None,
+    mark_kwargs: dict[str, Any] | None = None, encode_kwargs: dict[str, Any] | None = None) -> alt.Chart:
     '''Draw the edges of graph G using Altair, with control over various features, including filtering and curve.
-    
+
     Note that for arguments which accept edge attributes as alternatives to fixed values there are additional options generated in the drawing process:
     their name ('edge'), order of nodes ('order'), node pair names individually and together ('source', 'target', 'pair'), and node coordinates ('x', 'y').
 
@@ -208,8 +211,9 @@ def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
         edge_chart = alt.Chart(df_edge_arrows)
     else: raise ValueError('one of G, chart or layer is required to draw.')
 
-    marker_attrs, encoded_attrs = {}, {}
-    legend = {} if legend else None
+    marker_attrs: dict[str, Any] = {}
+    encoded_attrs: dict[str, Any] = {}
+    legend_spec: dict[str, Any] | None = {} if legend else None
 
 
     # ---------- Handle the arguments ------------
@@ -220,7 +224,7 @@ def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
     elif subset is not None: raise TypeError('subset must be a list or None.')
 
     # Width
-    if isinstance(width, str): encoded_attrs['size'] = alt.Size(width, legend = legend)
+    if isinstance(width, str): encoded_attrs['size'] = alt.Size(width, legend = legend_spec)
     elif isinstance(width, (float, int)): marker_attrs['strokeWidth'] = width
     else: raise TypeError('arrow_width must be a string or int.')
 
@@ -228,17 +232,17 @@ def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
     if dash_and_gap_lengths is not None: # allow no dashes
         if not (isinstance(dash_and_gap_lengths, str) or (isinstance(dash_and_gap_lengths, tuple) and len(dash_and_gap_lengths) == 2 and isinstance(dash_and_gap_lengths[0], (float, int)) and isinstance(dash_and_gap_lengths[1], (float, int)))):
             raise TypeError('dash_and_gap_lengths must be None or a pair of numbers representing the lengths of dashes and gaps between dashes or an edge attribute containing the same or containing strings.')
-        if dash_and_gap_lengths in df_edge_arrows.columns: encoded_attrs['strokeDash'] = alt.StrokeDash(dash_and_gap_lengths, legend = legend)
+        if dash_and_gap_lengths in df_edge_arrows.columns: encoded_attrs['strokeDash'] = alt.StrokeDash(dash_and_gap_lengths, legend = legend_spec)
         elif isinstance(dash_and_gap_lengths, str): raise ValueError(f'dash_and_gap_lengths was set to a string (\'{dash_and_gap_lengths}\') not matching any edge attribute; its allowed values are None or a pair of numbers representing the lengths of dashes and gaps between dashes or an edge attribute containing the same or containing strings.')
         else: marker_attrs['strokeDash'] = dash_and_gap_lengths
 
     # Colour
     if not isinstance(colour, str): raise TypeError('colour must be a string (either a colour or an edge attribute containing colour strings or floats for a colour map).')
-    elif colour in df_edge_arrows.columns:
-        if cmap is None: encoded_attrs['color'] = alt.Color(colour, legend = legend)
+    if colour in df_edge_arrows.columns:
+        if cmap is None: encoded_attrs['color'] = alt.Color(colour, legend = legend_spec)
         elif isinstance(cmap, str):
             if df_edge_arrows.dtypes[colour] == 'O': raise TypeError(f'the edge attribute ({colour}) to use with cmap {cmap} is non-numeric.')
-            else: encoded_attrs['color'] = alt.Color(colour, scale = alt.Scale(scheme = cmap), legend = legend)
+            encoded_attrs['color'] = alt.Color(colour, scale = alt.Scale(scheme = cmap), legend = legend_spec)
         else: raise TypeError('cmap must be a string (colourmap name) or None.')
     else: marker_attrs['color'] = colour
 
@@ -268,15 +272,15 @@ def draw_networkx_arrows(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
 
 
 
-def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None,
-    chart: alt.Chart = None, layer: alt.Chart = None, subset: list = None,
-    size: int | str = 400, shape = 'circle',
-    colour = 'teal', cmap: str = None, alpha = 1.,
-    outline_width: float | str = 1., outline_dash_and_gap_lengths: tuple[float, float] | str = None, outline_colour: str = None,
-    tooltip: list[str] = None, legend = False,
-    mark_kwargs: dict[str, ...] = None, encode_kwargs: dict[str, ...] = None):
+def draw_networkx_nodes(G: nx.Graph = None, pos: dict[Any, tuple[float, float]] | None = None,
+    chart: alt.Chart = None, layer: alt.Chart = None, subset: list[Any] | None = None,
+    size: int | str = 400, shape: str = 'circle',
+    colour: str | None = 'teal', cmap: str | None = None, alpha: float | str | None = None,
+    outline_width: float | str = 1., outline_dash_and_gap_lengths: tuple[float, float] | str | None = None, outline_colour: str | None = None,
+    tooltip: list[str] | None = None, legend: bool = False,
+    mark_kwargs: dict[str, Any] | None = None, encode_kwargs: dict[str, Any] | None = None) -> alt.Chart:
     '''Draw the nodes of graph G using Altair, with control over various features, including filtering, and sizes.
-    
+
     Note that for arguments which accept node attributes as alternatives to fixed values there are additional options generated in the drawing process:
     their name ('node') and position coordinates ('x', 'y').
 
@@ -323,8 +327,9 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
         node_chart = alt.Chart(df_nodes)
     else: raise ValueError('one of G, chart or layer is required to draw.')
 
-    marker_attrs, encoded_attrs = {}, {}
-    legend = {} if legend else None
+    marker_attrs: dict[str, Any] = {}
+    encoded_attrs: dict[str, Any] = {}
+    legend_spec: dict[str, Any] | None = {} if legend else None
 
 
     # ---------- Handle the arguments ------------
@@ -335,13 +340,13 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
     elif subset is not None: raise TypeError('node_subset must be a list or None.')
 
     # Size
-    if isinstance(size, str): encoded_attrs['size'] = alt.Size(size, legend = legend)
+    if isinstance(size, str): encoded_attrs['size'] = alt.Size(size, legend = legend_spec)
     elif isinstance(size, int): marker_attrs['size'] = size
     else: raise TypeError('node_size must be a string or int.')
 
     # Shape
     if not isinstance(shape, str): raise TypeError('shape must be a string (either an altair point-mark shape or an edge attribute containing the same).')
-    elif shape in df_nodes.columns: encoded_attrs['shape'] = alt.Shape(shape, legend = legend)
+    if shape in df_nodes.columns: encoded_attrs['shape'] = alt.Shape(shape, legend = legend_spec)
     else: marker_attrs['shape'] = shape
 
     # Fill colour
@@ -351,7 +356,7 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
         else: marker_attrs['fill'] = colour
 
     # Outline width
-    if isinstance(outline_width, str): encoded_attrs['strokeWidth'] = alt.Size(outline_width, legend = legend)
+    if isinstance(outline_width, str): encoded_attrs['strokeWidth'] = alt.Size(outline_width, legend = legend_spec)
     elif isinstance(outline_width, (float, int)): marker_attrs['strokeWidth'] = outline_width
     else: raise TypeError('linewidths must be a string or int.')
 
@@ -359,7 +364,7 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
     if outline_dash_and_gap_lengths is not None: # allow no dashes
         if not (isinstance(outline_dash_and_gap_lengths, str) or (isinstance(outline_dash_and_gap_lengths, tuple) and len(outline_dash_and_gap_lengths) == 2 and isinstance(outline_dash_and_gap_lengths[0], (float, int)) and isinstance(outline_dash_and_gap_lengths[1], (float, int)))):
             raise TypeError('outline_dash_and_gap_lengths must be None or a pair of numbers representing the lengths of dashes and gaps between dashes or a node attribute containing the same or containing strings.')
-        if outline_dash_and_gap_lengths in df_nodes.columns: encoded_attrs['strokeDash'] = alt.StrokeDash(outline_dash_and_gap_lengths, legend = legend)
+        if outline_dash_and_gap_lengths in df_nodes.columns: encoded_attrs['strokeDash'] = alt.StrokeDash(outline_dash_and_gap_lengths, legend = legend_spec)
         elif isinstance(outline_dash_and_gap_lengths, str): raise ValueError(f'outline_dash_and_gap_lengths was set to a string (\'{outline_dash_and_gap_lengths}\') not matching any edge attribute; its allowed values are None or a pair of numbers representing the lengths of dashes and gaps between dashes or a node attribute containing the same or containing strings.')
         else: marker_attrs['strokeDash'] = outline_dash_and_gap_lengths
 
@@ -399,12 +404,12 @@ def draw_networkx_nodes(G: nx.Graph = None, pos: dict[..., tuple[float, float]] 
 
 
 
-def draw_networkx_labels(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None,
-    chart: alt.Chart = None, layer: alt.Chart = None, subset: list = None,
-    label: str = None, font_size = 15, font_colour = 'black',
-    mark_kwargs: dict[str, ...] = None, encode_kwargs: dict[str, ...] = None):
+def draw_networkx_labels(G: nx.Graph = None, pos: dict[Any, tuple[float, float]] | None = None,
+    chart: alt.Chart = None, layer: alt.Chart = None, subset: list[Any] | None = None,
+    label: str | None = None, font_size: int | str = 15, font_colour: str = 'black',
+    mark_kwargs: dict[str, Any] | None = None, encode_kwargs: dict[str, Any] | None = None) -> alt.Chart:
     '''Draw the node labels of graph G using Altair, with control over various features, including node filtering, and font.
-    
+
     Note that for arguments which accept node attributes as alternatives to fixed values there are additional options generated in the drawing process:
     their name ('node') and position coordinates ('x', 'y').
 
@@ -439,7 +444,8 @@ def draw_networkx_labels(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
         node_chart = alt.Chart(df_nodes)
     else: raise ValueError('one of G, chart or layer is required to draw.')
 
-    marker_attrs, encoded_attrs = {}, {}
+    marker_attrs: dict[str, Any] = {}
+    encoded_attrs: dict[str, Any] = {}
 
 
     # ---------- Handle the arguments ------------
@@ -482,23 +488,23 @@ def draw_networkx_labels(G: nx.Graph = None, pos: dict[..., tuple[float, float]]
 
 
 
-def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None, chart: alt.Chart = None,
-    node_subset: list = None, edge_subset: list = None, show_orphans = True, show_self_loops = True,
-    node_size: int | str = 400, node_shape = 'circle', node_colour = 'teal', node_cmap: str = None, node_alpha = 1.,
-    node_outline_width: float | str = 1., node_outline_dash_and_gap_lengths: tuple[float, float] | str = None, node_outline_colour: str = None,
-    node_mark_kwargs: dict[str, ...] = None, node_encode_kwargs: dict[str, ...] = None,
-    node_label: str = None, node_font_size = 15, node_font_colour = 'black', node_tooltip: list[str] = None, node_legend = False,
-    node_label_mark_kwargs: dict[str, ...] = None, node_label_encode_kwargs: dict[str, ...] = None,
-    edge_width = 1, edge_dash_and_gap_lengths: tuple[float, float] | str = None, edge_colour = 'grey', edge_cmap: str = None, edge_alpha = 1.,
-    edge_tooltip: list[str] = None, edge_legend = False,
-    loop_radius = .05, loop_angle = 90., loop_n_points = 30,
-    curved_edges = False, edge_control_points: list[tuple[float, float]] = None, edge_interpolation = 'basis',
-    edge_mark_kwargs: dict[str, ...] = None, edge_encode_kwargs: dict[str, ...] = None,
-    arrow_width = 2, arrow_length = .1, arrow_length_is_relative = True, arrow_colour = 'black', arrow_cmap: str = None, arrow_alpha = 1., arrow_legend = False,
-    arrow_mark_kwargs: dict[str, ...] = None, arrow_encode_kwargs: dict[str, ...] = None,
-    chart_width: float | None = 500., chart_height: float | None = 300., chart_padding = .05):
+def draw_networkx(G: nx.Graph = None, pos: dict[Any, tuple[float, float]] | None = None, chart: alt.Chart = None,
+    node_subset: list[Any] | None = None, edge_subset: list[Any] | None = None, show_orphans: bool = True, show_self_loops: bool = True,
+    node_size: int | str = 400, node_shape: str = 'circle', node_colour: str = 'teal', node_cmap: str | None = None, node_alpha: float | str | None = None,
+    node_outline_width: float | str = 1., node_outline_dash_and_gap_lengths: tuple[float, float] | str | None = None, node_outline_colour: str | None = None,
+    node_mark_kwargs: dict[str, Any] | None = None, node_encode_kwargs: dict[str, Any] | None = None,
+    node_label: str | None = None, node_font_size: int | str = 15, node_font_colour: str = 'black', node_tooltip: list[str] | None = None, node_legend: bool = False,
+    node_label_mark_kwargs: dict[str, Any] | None = None, node_label_encode_kwargs: dict[str, Any] | None = None,
+    edge_width: int | str = 1, edge_dash_and_gap_lengths: tuple[float, float] | str | None = None, edge_colour: str = 'grey', edge_cmap: str | None = None, edge_alpha: float | str | None = None,
+    edge_tooltip: list[str] | None = None, edge_legend: bool = False,
+    loop_radius: float = .05, loop_angle: float = 90., loop_n_points: int = 30,
+    curved_edges: bool = False, edge_control_points: list[tuple[float, float]] | None = None, edge_interpolation: str = 'basis',
+    edge_mark_kwargs: dict[str, Any] | None = None, edge_encode_kwargs: dict[str, Any] | None = None,
+    arrow_width: int | str = 2, arrow_length: float = .1, arrow_length_is_relative: bool = True, arrow_colour: str = 'black', arrow_cmap: str | None = None, arrow_alpha: float | str | None = None, arrow_legend: bool = False,
+    arrow_mark_kwargs: dict[str, Any] | None = None, arrow_encode_kwargs: dict[str, Any] | None = None,
+    chart_width: float | None = 500., chart_height: float | None = 300., chart_padding: float = .05) -> alt.Chart:
     '''Draw the graph G using Altair, with control over node, edge and arrow features, including filtering and curved edges.
-    
+
     Note that for arguments which accept node or edge attributes as alternatives to fixed values there are additional options generated in the drawing process:
     for nodes these are their name ('node') and position coordinates ('x', 'y'),
     while for edges they are their name ('edge'), order of nodes ('order'), node pair names individually and together ('source', 'target', 'pair'), and node coordinates ('x', 'y').
@@ -530,7 +536,7 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None
     :param show_orphans: Whether to draw nodes with no edges.
     :param show_self_loops: Whether to draw edges starting and ending on the same node;
         nodes with only self-loops will still be drawn (though edge-less) unless show_orphans is also False.
-        
+
     :param node_size: Either an int or a node attribute containing ints.
     :param node_shape: Either an Altair point-mark shape specifier or a node attribute containing the same.
         Note that this also includes SVG path strings; see https://altair-viz.github.io/user_guide/marks/point.html.
@@ -546,7 +552,7 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None
 
     :param node_mark_kwargs: Custom fields to inject into the node layer's `.mark_point` call without restrictions or safeguards; will overwrite existing fields on overlaps.
     :param node_encode_kwargs: Custom fields to inject into the node layer's `.encode` call without restrictions or safeguards; will overwrite existing fields on overlaps.
-    
+
     :param node_label: Either a string to use as identical label for all nodes or a node attribute containing strings.
         Note that the auto-generated 'node' attribute contains node names.
     :param node_font_size: Either an int or a node attribute containing ints.
@@ -633,23 +639,14 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None
         G = deepcopy(G)
         if not show_self_loops: G.remove_edges_from(nx.selfloop_edges(G))
         if not show_orphans: G.remove_nodes_from(list(nx.isolates(G))) # wants a non-generator iterable
-    
+
     if not pos: pos = nx.drawing.layout.kamada_kawai_layout(G)
 
 
     # ---------- Scale the coordinates ------------
 
-    if chart_width is None and chart_height is None: raise ValueError('chart_width and chart_height cannot both be None; if one is None then the other is determined by the graph\'s own aspect ratio.')
-
-    pos_xs, pos_ys = zip(*pos.values())
-    x_range, y_range = max(pos_xs) - min(pos_xs), max(pos_ys) - min(pos_ys)
-    if chart_width is None: chart_width = chart_height * x_range / y_range
-    if chart_height is None: chart_height = chart_width * y_range / x_range
-
-    # Scale x and y to [0,1] (so that loop_radius values are consistent across charts)
-    pos = {n: (0. if x_range == 0 else (xy[0] - min(pos_xs)) / x_range, 0. if y_range == 0 else (xy[1] - min(pos_ys)) / y_range) for n, xy in pos.items()}
-    if chart_width != chart_height: # Stretch the coordinate corresponding to the larger chart size so that aspect ratios match (and therefore x and y axes' units are equal)
-        pos = {n: (xy[0] * chart_width/chart_height, xy[1]) if chart_width >= chart_height else (xy[0], xy[1] * chart_height/chart_width) for n, xy in pos.items()}
+    xs, ys, chart_width, chart_height = resolve_coordinate_scaling([xy[0] for xy in pos.values()], [xy[1] for xy in pos.values()], chart_width, chart_height)
+    pos = dict(zip(pos, zip(xs, ys, strict = True), strict = True))
 
 
     # ---------- Construct the layers ------------
@@ -696,28 +693,5 @@ def draw_networkx(G: nx.Graph = None, pos: dict[..., tuple[float, float]] = None
 
     # ---------- Assemble the layers and make padded axes match the aspect ratio ------------
 
-    if layers:
-        # Extract the coordinate ranges from the layers which are present (since drawn elements, e.g. self-loops or large node sizes, might not match node coordinate ranges)
-        min_xs, max_xs, min_ys, max_ys = zip(*((min(l.data['x']), max(l.data['x']), min(l.data['y']), max(l.data['y'])) for l in layers))
-        x_range = (max_x := max(max_xs)) - (min_x := min(min_xs))
-        y_range = (max_y := max(max_ys)) - (min_y := min(min_ys))
-
-        # Compute new coordinate ranges with uniform padding AND s.t. the aspect ratio matches the required one
-        #   It is cleaner to work in terms of longer and shorter sides rather than real x and y; reassign at the end
-        long_axis, short_axis, long_side, short_side = (x_range, y_range, chart_width, chart_height) if chart_width >= chart_height else (y_range, x_range, chart_height, chart_width)
-        long_padding = short_padding = chart_padding * max(x_range, y_range) # use the larger of the two as uniform padding
-
-        # Impose the chart's aspect ratio onto the axes by increasing the length of one of the two (i.e. avoid going below the stated padding; only above)
-        if (raw_long := long_axis + 2 * long_padding) / (raw_short := short_axis + 2 * short_padding) >= long_side / short_side:
-            short_padding = ((raw_long * short_side / long_side) - short_axis) / 2 # i.e. (correct-aspect-ratio raw_short - short_axis) / 2
-        else: long_padding = ((raw_short * long_side / short_side) - long_axis) / 2 # i.e. (correct-aspect-ratio raw_long - long_axis) / 2
-
-        x_padding, y_padding = (long_padding, short_padding) if chart_width >= chart_height else (short_padding, long_padding)
-
-        return alt.layer(*layers).encode(
-            alt.X().scale(domain = (min_x - x_padding, max_x + x_padding)),
-            alt.Y().scale(domain = (min_y - y_padding, max_y + y_padding))
-        ).properties(width = chart_width, height = chart_height)
+    if layers: return assemble_padded_layers(layers, chart_width, chart_height, chart_padding)
     else: raise ValueError('G does not contain any nodes or edges.')
-
-

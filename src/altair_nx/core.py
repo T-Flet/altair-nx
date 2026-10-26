@@ -1,20 +1,21 @@
-import pandas as pd
-import networkx as nx
-import altair as alt
-
-from math import atan2, sin, cos, pi, sqrt
 from itertools import chain
+from math import atan2, cos, pi, sin, sqrt
+from typing import Any
+
+import altair as alt
+import networkx as nx
+import pandas as pd
 
 from .util import despine
 
 
-def to_pandas_nodes(G: nx.Graph, pos: dict[..., tuple[float, float]]):
+def to_pandas_nodes(G: nx.Graph, pos: dict[Any, tuple[float, float]]) -> pd.DataFrame:
     '''Convert Graph nodes to pandas DataFrame meant for drawing with Altair.
-    
+
     :param G: The graph to draw.
     :param pos: The node positions of G, as produced by any of the `nx.*_layout functions`, e.g. `nx.kamada_kawai_layout`.
         Note that most layouts use random seeds; for reproducible results set `np.random.seed(...)` before they are called.
-    
+
     :return: A pandas DataFrame of nodes.
     '''
     assert not (overlap := set(chain.from_iterable(G.nodes[n].keys() for n in G.nodes)).intersection(avoid := ['node', 'x', 'y'])), f'nodes in G should not have attributes named any of {avoid}; overlapping attributes: {overlap}'
@@ -22,8 +23,8 @@ def to_pandas_nodes(G: nx.Graph, pos: dict[..., tuple[float, float]]):
 
 
 
-def to_pandas_edges(G: nx.Graph, pos: dict[..., tuple[float, float]], control_points: list[tuple[float, float]] = None,
-    loop_radius = .05, loop_angle = 90., loop_n_points = 30):
+def to_pandas_edges(G: nx.Graph, pos: dict[Any, tuple[float, float]], control_points: list[tuple[float, float]] | None = None,
+    loop_radius: float = .05, loop_angle: float = 90., loop_n_points: int = 30) -> pd.DataFrame:
     '''Convert Graph edges to pandas DataFrame meant for drawing with Altair.
 
     :param G: The graph to draw.
@@ -98,7 +99,7 @@ def to_pandas_edges(G: nx.Graph, pos: dict[..., tuple[float, float]], control_po
 
 
 
-def to_pandas_edge_arrows(G: nx.Graph, pos: dict[..., tuple[float, float]], length: float, length_is_relative = False, control_points: list[tuple[float, float]] = None):
+def to_pandas_edge_arrows(G: nx.Graph, pos: dict[Any, tuple[float, float]], length: float, length_is_relative: bool = False, control_points: list[tuple[float, float]] | None = None) -> pd.DataFrame:
     '''Convert Graph edge arrows to pandas DataFrame meant for drawing with Altair.
 
     Note that arrows are not drawn for self-loops since they would convey no extra information (and also to avoid unnecessary clutter).
@@ -149,13 +150,13 @@ def to_pandas_edge_arrows(G: nx.Graph, pos: dict[..., tuple[float, float]], leng
 
 
 
-def to_chart(G: nx.Graph, pos: dict[..., tuple[float, float]]):
+def to_chart(G: nx.Graph, pos: dict[Any, tuple[float, float]]) -> alt.Chart:
     '''Construct a single Altair Chart for the given Graph and node positions.
-    
+
     :param G: The graph to draw.
     :param pos: The node positions of G, as produced by any of the `nx.*_layout functions`, e.g. `nx.kamada_kawai_layout`.
         Note that most layouts use random seeds; for reproducible results set `np.random.seed(...)` before they are called.
-    
+
     :return: An Altair chart with layers for G's edges and nodes.
     '''
     node_df = to_pandas_nodes(G, pos)
@@ -167,5 +168,3 @@ def to_chart(G: nx.Graph, pos: dict[..., tuple[float, float]]):
     chart = alt.LayerChart(layer = (edge_layer, node_layer))
 
     return despine(chart)
-
-

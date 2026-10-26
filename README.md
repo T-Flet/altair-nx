@@ -16,18 +16,19 @@
 
 **altair-nx** offers a similar **draw** API to NetworkX but returns Altair Charts instead.
 
+This allows much greater customisability, adds support for curved edges and self loops, and introduces interactivity into graph representations (e.g. node and edge property changes, and selection-based reactions), including support for graph time-lapses.
+
 This project started as a fork of [nx-altair](https://github.com/Zsailer/nx_altair) (inactive since 2020)
 meant for fixing issues and merging pull requests,
 but after a full code-base rework (causing backward and forward incompatibility)
-and the implementation of new features (e.g. curved edges, self loops, and much greater customisation),
-it became reasonable for it to be its own library.
+and the implementation of new features, it became reasonable for it to be its own library.
 
 
 
 ## Installation:
 
 ```
-pip install altair-nx
+uv pip install altair-nx
 ```
 
 
@@ -101,7 +102,12 @@ Make a chart depend on a selection over the graph:
 Create controls to affect chart parameters:
 <video src = 'https://github.com/T-Flet/altair-nx/assets/6699494/76cff2fe-90e2-43bd-ae92-5b77883cf230'>
 
-Both examples are in the [tutorial notebook](examples/altair-nx-tutorial.ipynb).
+Create a slider-driven timelapse from a sequence of NetworkX graph snapshots with `anx.stitch_frames` and `anx.draw_networkx_timelapse`.
+Nodes and edges can be made to appear or disappear, and their attributes can change from frame to frame.
+<video src = 'https://github.com/user-attachments/assets/96d93ea2-e47e-4508-a7b8-5468ade151f8'>
+
+
+All examples are in the [tutorial notebook](examples/altair-nx-tutorial.ipynb).
 
 
 
@@ -126,5 +132,3 @@ Both examples are in the [tutorial notebook](examples/altair-nx-tutorial.ipynb).
 [license-badge]:            https://img.shields.io/pypi/l/altair-nx.svg
 [license-link]:             https://github.com/T-Flet/altair-nx/blob/master/LICENSE
 <!-- prettier-ignore-end -->
-
-

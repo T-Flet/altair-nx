@@ -5,7 +5,7 @@ on:
   pull_request:
   push:
     branches:
-      - main
+      - master
   release:
     types:
       - published
@@ -25,11 +25,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: hynek/build-and-inspect-python-package@v2
+      - uses: astral-sh/setup-uv@v10.3.2
+
+      - name: Build package
+        run: uv build
 
   publish:
     needs: [dist]
@@ -41,9 +44,14 @@ jobs:
     if: github.event_name == 'release' && github.event.action == 'published'
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
         with:
-          name: Packages
-          path: dist
+          fetch-depth: 0
 
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: astral-sh/setup-uv@v10.3.2
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish package
+        run: uv publish dist/*
